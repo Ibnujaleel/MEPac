@@ -1,6 +1,11 @@
 import React from 'react';
 
-export default function Dashboard({ setActiveView, projects = [], navigateToProject }) {
+export default function Dashboard({ setActiveView, projects = [], navigateToProject, alerts = [] }) {
+    const totalAlerts = alerts.length;
+    const needApprovalCount = alerts.filter(a => a.status === 'Open').length;
+    const acknowledgedCount = alerts.filter(a => a.status === 'Acknowledged').length;
+    const resolvedCount = alerts.filter(a => a.status === 'Resolved').length;
+
     return (
         <section className="view active">
             <div className="view-header">
@@ -18,11 +23,30 @@ export default function Dashboard({ setActiveView, projects = [], navigateToProj
                     <div className="metric-trend positive">↑ 12%</div>
                     <div className="metric-desc">across 3 projects</div>
                 </div>
-                <div className="metric-card alert-amber">
-                    <div className="metric-header">ATTENDANCE DISPUTES</div>
-                    <div className="metric-value">3</div>
-                    <div className="metric-desc highlight-amber">NEEDS ADMIN REVIEW</div>
+                
+                {/* Active Alerts Pill */}
+                <div 
+                    className="metric-card" 
+                    onClick={() => setActiveView('view-alerts')}
+                    style={{ 
+                        borderLeft: '4px solid var(--accent-red)', 
+                        cursor: 'pointer' 
+                    }}
+                >
+                    <div className="metric-header">ACTIVE ALERTS</div>
+                    <div className="metric-value">{totalAlerts}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', marginTop: '6px', color: 'var(--text-secondary)' }}>
+                        <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--accent-red)' }}></span>
+                        {needApprovalCount} need approval
+                        <span>·</span>
+                        <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--accent-amber)' }}></span>
+                        {acknowledgedCount} ack
+                        <span>·</span>
+                        <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--accent-green)' }}></span>
+                        {resolvedCount} resolved
+                    </div>
                 </div>
+
                 <div className="metric-card alert-red">
                     <div className="metric-header">ABSENCE REPORTS</div>
                     <div className="metric-value">2</div>

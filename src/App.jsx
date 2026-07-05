@@ -13,6 +13,7 @@ import Workforce from './views/Workforce';
 import RFIs from './views/RFIs';
 import Drawings from './views/Drawings';
 import Settings from './views/Settings';
+import Alerts from './views/Alerts';
 
 // Modals and Overlays
 import NotificationsPanel from './components/notifications/NotificationsPanel';
@@ -102,10 +103,100 @@ const demoNotifications = [
   { id: 3, title: 'Silent Site Alert', time: '2 hours ago', desc: 'No check-ins recorded at Mall Extension this morning.', isRead: true }
 ];
 
+const demoAlerts = [
+  {
+    id: 'a1',
+    project: 'Grand Tower MEP',
+    projectId: 'p1',
+    worker: { name: 'Arun Agarwal', role: 'Electrician', avatar: 'AA' },
+    title: 'Early sign‑off (2h 15m early)',
+    type: 'Early Sign‑off',
+    context: 'Scheduled: 8 AM–5 PM, Clocked out: 2:45 PM',
+    status: 'Open',
+    date: '2026-07-05'
+  },
+  {
+    id: 'a2',
+    project: 'Grand Tower MEP',
+    projectId: 'p1',
+    worker: { name: 'Vikram Patel', role: 'Plumber', avatar: 'VP' },
+    title: 'Proxy without reason',
+    type: 'Proxy',
+    context: 'Reported by Rajat Sharma, 09:45 AM',
+    status: 'Open',
+    date: '2026-07-05'
+  },
+  {
+    id: 'a3',
+    project: 'Mall Extension',
+    projectId: 'p2',
+    worker: { name: 'David Rodriguez', role: 'HVAC Tech', avatar: 'DR' },
+    title: 'Unexcused Absence',
+    type: 'Absence',
+    context: 'Scheduled: 8 AM–5 PM, No check-in recorded',
+    status: 'Open',
+    date: '2026-07-04'
+  },
+  {
+    id: 'a4',
+    project: 'Mall Extension',
+    projectId: 'p2',
+    worker: { name: 'Alex Lee', role: 'Welder', avatar: 'AL' },
+    title: 'Supervisor Flag – Not on site',
+    type: 'Supervisor Flag',
+    context: 'Flagged by Vikram Singh, 11:30 AM',
+    status: 'Acknowledged',
+    date: '2026-07-04'
+  },
+  {
+    id: 'a5',
+    project: 'City Center Mall',
+    projectId: 'p3',
+    worker: { name: 'James Brown', role: 'Plumber', avatar: 'JB' },
+    title: 'Late Pattern (3rd time this week)',
+    type: 'Late Pattern',
+    context: 'Scheduled: 8 AM, Checked in: 8:45 AM',
+    status: 'Resolved',
+    date: '2026-07-03'
+  },
+  {
+    id: 'a6',
+    project: 'Sunrise Apartments',
+    projectId: 'p4',
+    worker: { name: 'Chris Parker', role: 'HVAC Tech', avatar: 'CP' },
+    title: 'Short Shift (worked 4h 30m)',
+    type: 'Short Shift',
+    context: 'Scheduled: 8h shift, Clocked out early',
+    status: 'Acknowledged',
+    date: '2026-07-02'
+  },
+  {
+    id: 'a7',
+    project: 'Sunrise Apartments',
+    projectId: 'p4',
+    worker: { name: 'Emily Moore', role: 'Welder', avatar: 'EM' },
+    title: 'Unexcused Absence',
+    type: 'Absence',
+    context: 'No check-in recorded',
+    status: 'Resolved',
+    date: '2026-07-02'
+  }
+];
+
+const demoDrawings = [
+  { id: 'd1', project_id: 'p1', file_name: 'Electrical Layout - Floor 1.pdf', file_url: '#', version_label: 'Rev 1', uploaded_at: '2026-06-12', notes: 'Initial floor 1 layout approval.', is_published: true },
+  { id: 'd2', project_id: 'p1', file_name: 'Main Switchboard Schematic.pdf', file_url: '#', version_label: 'Rev 3', uploaded_at: '2026-06-18', notes: 'Updated breakers configuration.', is_published: true },
+  { id: 'd3', project_id: 'p2', file_name: 'HVAC Main Grid Ducting.pdf', file_url: '#', version_label: 'Rev 2', uploaded_at: '2026-06-20', notes: 'Pending site survey confirmation.', is_published: false },
+  { id: 'd4', project_id: 'p4', file_name: 'Lighting Layout Type A.pdf', file_url: '#', version_label: 'Rev 1', uploaded_at: '2026-06-25', notes: 'Standard apartment lighting schematic.', is_published: true },
+  { id: 'd5', project_id: 'p1', file_name: 'Emergency Lighting Floor 1.pdf', file_url: '#', version_label: 'Rev 2 Draft', uploaded_at: '2026-07-01', notes: 'Draft under review by supervisor.', is_published: false }
+];
+
 export default function App() {
   const [activeView, setActiveView] = useState('view-dashboard');
   const [projects, setProjects] = useState(demoProjects);
   const [notifications, setNotifications] = useState(demoNotifications);
+  const [alerts, setAlerts] = useState(demoAlerts);
+  const [drawings, setDrawings] = useState(demoDrawings);
   const [activeModal, setActiveModal] = useState(null); // 'add-project', 'add-worker', etc.
   const [activePanel, setActivePanel] = useState(null); // 'notifications', 'profile', or null
   const [selectedProject, setSelectedProject] = useState(null);
@@ -157,12 +248,13 @@ export default function App() {
         <Topbar activePanel={activePanel} togglePanel={togglePanel} notifications={notifications} />
         
         <div className="views-container">
-          {activeView === 'view-dashboard' && <Dashboard setActiveView={handleSetActiveView} projects={projects} navigateToProject={navigateToProject} />}
-          {activeView === 'view-projects' && <ProjectsHub openModal={openModal} projects={projects} initialSelectedProject={selectedProject} onClearSelection={() => setSelectedProject(null)} />}
-          {activeView === 'view-workforce' && <Workforce openModal={openModal} />}
-          {activeView === 'view-attendance' && <AttendanceLog />}
+          {activeView === 'view-dashboard' && <Dashboard setActiveView={handleSetActiveView} projects={projects} navigateToProject={navigateToProject} alerts={alerts} setAlerts={setAlerts} />}
+          {activeView === 'view-projects' && <ProjectsHub openModal={openModal} projects={projects} initialSelectedProject={selectedProject} onClearSelection={() => setSelectedProject(null)} alerts={alerts} setAlerts={setAlerts} />}
+          {activeView === 'view-workforce' && <Workforce openModal={openModal} projects={projects} />}
+          {activeView === 'view-attendance' && <AttendanceLog projects={projects} navigateToProject={navigateToProject} setActiveView={handleSetActiveView} />}
+          {activeView === 'view-alerts' && <Alerts alerts={alerts} setAlerts={setAlerts} />}
           {activeView === 'view-rfis' && <RFIs openModal={openModal} />}
-          {activeView === 'view-drawings' && <Drawings openModal={openModal} projects={projects} />}
+          {activeView === 'view-drawings' && <Drawings projects={projects} drawings={drawings} setDrawings={setDrawings} />}
           {activeView === 'view-settings' && <Settings />}
         </div>
       </main>

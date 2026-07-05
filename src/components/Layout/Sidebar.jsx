@@ -6,7 +6,8 @@ import {
     Calendar, 
     FileText, 
     Compass, 
-    Settings 
+    Settings,
+    Bell
 } from 'lucide-react';
 
 export default function Sidebar({ activeView, setActiveView }) {
@@ -15,6 +16,7 @@ export default function Sidebar({ activeView, setActiveView }) {
         { id: 'view-projects', Icon: Briefcase, label: 'Projects' },
         { id: 'view-workforce', Icon: Users, label: 'Workforce' },
         { id: 'view-attendance', Icon: Calendar, label: 'Attendance' },
+        { id: 'view-alerts', Icon: Bell, label: 'Alerts' },
         { id: 'view-rfis', Icon: FileText, label: 'RFIs' },
         { id: 'view-drawings', Icon: Compass, label: 'Drawings' }
     ];

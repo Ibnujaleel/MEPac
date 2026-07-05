@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ProjectDetails from './ProjectDetails';
 
-export default function ProjectsHub({ openModal, projects, initialSelectedProject = null, onClearSelection }) {
+export default function ProjectsHub({ openModal, projects, initialSelectedProject = null, onClearSelection, alerts, setAlerts }) {
     const [selectedProject, setSelectedProject] = useState(initialSelectedProject);
 
     // Sync when navigating from Dashboard with a pre-selected project
@@ -17,7 +17,7 @@ export default function ProjectsHub({ openModal, projects, initialSelectedProjec
     };
 
     if (selectedProject) {
-        return <ProjectDetails project={selectedProject} onBack={handleBack} />;
+        return <ProjectDetails project={selectedProject} onBack={handleBack} alerts={alerts} setAlerts={setAlerts} />;
     }
 
     return (
