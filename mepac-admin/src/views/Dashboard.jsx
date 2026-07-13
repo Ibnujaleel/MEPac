@@ -8,7 +8,9 @@ export default function Dashboard({ setActiveView, projects = [] }) {
                     <h2>Mission Control</h2>
                     <p className="subtitle">Real-time operational overview.</p>
                 </div>
-                <div className="date-display">Today, Jun 6, 2026</div>
+                <div className="date-display">
+                    {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </div>
             </div>
             
             <div className="metrics-row">

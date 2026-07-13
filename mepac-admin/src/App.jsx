@@ -33,8 +33,8 @@ const demoProjects = [
     percent: 77,
     employeesPresent: 14,
     employees: [
-      { initials: 'MA', name: 'Michael Adams', role: 'Electrician' },
-      { initials: 'SJ', name: 'Sarah Jenkins', role: 'Plumber' },
+      { initials: 'MA', name: 'Michael Adams', role: 'Technician' },
+      { initials: 'SJ', name: 'Sarah Jenkins', role: 'Supervisor' },
       { initials: 'RJ', name: 'Robert Jones', role: 'Foreman' }
     ],
     blueprints: [
@@ -52,9 +52,9 @@ const demoProjects = [
     percent: 75,
     employeesPresent: 28,
     employees: [
-      { initials: 'DR', name: 'David Rodriguez', role: 'HVAC Tech' },
-      { initials: 'AL', name: 'Alex Lee', role: 'Welder' },
-      { initials: 'MG', name: 'Maria Garcia', role: 'Electrician' }
+      { initials: 'DR', name: 'David Rodriguez', role: 'Foreman' },
+      { initials: 'AL', name: 'Alex Lee', role: 'Technician' },
+      { initials: 'MG', name: 'Maria Garcia', role: 'Supervisor' }
     ],
     blueprints: [
       { id: 'b3', name: 'HVAC Main Grid', file: 'hvac_main.pdf' }
@@ -70,9 +70,9 @@ const demoProjects = [
     percent: 50,
     employeesPresent: 5,
     employees: [
-      { initials: 'JB', name: 'James Brown', role: 'Plumber' },
+      { initials: 'JB', name: 'James Brown', role: 'Technician' },
       { initials: 'LT', name: 'Lisa Taylor', role: 'Foreman' },
-      { initials: 'KW', name: 'Kevin White', role: 'Electrician' }
+      { initials: 'KW', name: 'Kevin White', role: 'Supervisor' }
     ],
     blueprints: []
   },
@@ -86,9 +86,9 @@ const demoProjects = [
     percent: 86,
     employeesPresent: 19,
     employees: [
-      { initials: 'CP', name: 'Chris Parker', role: 'HVAC Tech' },
-      { initials: 'EM', name: 'Emily Moore', role: 'Welder' },
-      { initials: 'RN', name: 'Richard Nelson', role: 'Electrician' }
+      { initials: 'CP', name: 'Chris Parker', role: 'Supervisor' },
+      { initials: 'EM', name: 'Emily Moore', role: 'Technician' },
+      { initials: 'RN', name: 'Richard Nelson', role: 'Foreman' }
     ],
     blueprints: [
       { id: 'b4', name: 'Floor Plan - Type A', file: 'floorplan_A.pdf' }
@@ -162,12 +162,10 @@ export default function App() {
       />
       
       {activeModal && (
-        <div className="modal-overlay active" onMouseDown={(e) => {
-          if (e.target === e.currentTarget) closeModal();
-        }}>
+        <div className="modal-overlay active">
           {activeModal === 'add-project' && <AddProjectModal onClose={closeModal} />}
           {activeModal === 'add-worker' && <AddWorkerModal onClose={closeModal} projects={projects} />}
-          {activeModal === 'new-rfi' && <NewRfiModal onClose={closeModal} projects={projects} />}
+          {activeModal === 'new-rfi' && <NewRfiModal onClose={closeModal} projects={projects} workers={projects.flatMap(p => p.employees.map(e => ({ ...e, project: p.name })))} />}
           {activeModal === 'upload-revision' && <UploadRevisionModal onClose={closeModal} projects={projects} />}
           {activeModal === 'add-blueprint' && <AddBlueprintModal onClose={closeModal} projects={projects} />}
         </div>

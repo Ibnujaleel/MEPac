@@ -23,7 +23,7 @@ export default function UploadRevisionModal({ onClose, projects = [] }) {
                 </div>
                 <div className="form-group">
                     <label>Revision Note</label>
-                    <textarea placeholder="What changed in this revision?"></textarea>
+                    <textarea placeholder="What changed in this revision?" maxLength={300}></textarea>
                 </div>
             </div>
             <div className="modal-footer">

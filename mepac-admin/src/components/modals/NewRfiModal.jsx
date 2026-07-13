@@ -1,6 +1,8 @@
 import React from 'react';
 
-export default function NewRfiModal({ onClose, projects = [] }) {
+export default function NewRfiModal({ onClose, projects = [], workers = [] }) {
+    const eligibleWorkers = workers.filter(w => w.role === 'Supervisor' || w.role === 'Foreman');
+
     return (
         <div className="modal" id="new-rfi-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
@@ -19,12 +21,23 @@ export default function NewRfiModal({ onClose, projects = [] }) {
                     </select>
                 </div>
                 <div className="form-group">
+                    <label>Directed To</label>
+                    <select defaultValue="">
+                        <option value="" disabled>Select a worker...</option>
+                        {eligibleWorkers.map((w, i) => (
+                            <option key={`${w.initials}-${i}`} value={w.name}>
+                                {w.name} — {w.role}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div className="form-group">
                     <label>Subject</label>
-                    <input type="text" placeholder="Brief subject of inquiry" />
+                    <input type="text" placeholder="Brief subject of inquiry" maxLength={100} />
                 </div>
                 <div className="form-group">
                     <label>Details</label>
-                    <textarea placeholder="Provide detailed information..." maxLength={500} rows={4}></textarea>
+                    <textarea placeholder="Provide detailed information..." maxLength={300} rows={4}></textarea>
                 </div>
             </div>
             <div className="modal-footer">
