@@ -1,4 +1,5 @@
 import React from 'react';
+import { Search, Bell, User, LogOut } from 'lucide-react';
 
 export default function Topbar({ activePanel, togglePanel, notifications = [] }) {
     const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -6,12 +7,12 @@ export default function Topbar({ activePanel, togglePanel, notifications = [] })
     return (
         <header className="topbar" style={{ position: 'relative', zIndex: 1000 }}>
             <div className="search-container">
-                <span className="icon">🔍</span>
+                <span className="icon"><Search size={18} /></span>
                 <input type="text" placeholder="Search logs, projects, workers..." />
             </div>
             <div className="topbar-actions">
                 <button className="icon-btn notif-btn" onClick={(e) => togglePanel('notifications', e)}>
-                    <span className="icon" style={{ pointerEvents: 'none' }}>🔔</span>
+                    <span className="icon" style={{ pointerEvents: 'none' }}><Bell size={18} /></span>
                     {unreadCount > 0 && <span className="badge" style={{ pointerEvents: 'none' }}>{unreadCount}</span>}
                 </button>
                 <div style={{ position: 'relative' }}>
@@ -43,14 +44,13 @@ export default function Topbar({ activePanel, togglePanel, notifications = [] })
                                 <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>admin@mepac.com</div>
                             </div>
                             <div style={{ padding: '8px' }}>
-                                <button className="btn text-btn" style={{ width: '100%', textAlign: 'left', padding: '8px 12px', justifyContent: 'flex-start' }} onClick={() => togglePanel('profile', null)}>👤 View Profile</button>
-                                <button className="btn text-btn" style={{ width: '100%', textAlign: 'left', padding: '8px 12px', justifyContent: 'flex-start' }} onClick={() => togglePanel('profile', null)}>⚙️ Settings</button>
+                                <button className="btn text-btn" style={{ width: '100%', textAlign: 'left', padding: '8px 12px', justifyContent: 'flex-start', gap: '8px' }} onClick={() => togglePanel('profile', null)}><User size={16} /> View Profile</button>
                             </div>
                             <div style={{ padding: '8px', borderTop: '1px solid var(--border-subtle)' }}>
-                                <button className="btn text-btn" style={{ width: '100%', textAlign: 'left', padding: '8px 12px', color: 'var(--accent-red)', justifyContent: 'flex-start' }} onClick={() => {
+                                <button className="btn text-btn" style={{ width: '100%', textAlign: 'left', padding: '8px 12px', color: 'var(--accent-red)', justifyContent: 'flex-start', gap: '8px' }} onClick={() => {
                                     togglePanel('profile', null);
                                     alert('You have successfully logged out of the demo account.');
-                                }}>🚪 Log Out</button>
+                                }}><LogOut size={16} /> Log Out</button>
                             </div>
                         </div>
                     )}

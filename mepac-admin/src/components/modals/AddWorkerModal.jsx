@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { X } from 'lucide-react';
 
-export default function AddWorkerModal({ onClose, projects = [] }) {
+export default function AddWorkerModal({ onClose }) {
     const [pin, setPin] = useState('');
     const [fullName, setFullName] = useState('');
     const [mobile, setMobile] = useState('');
@@ -29,7 +30,7 @@ export default function AddWorkerModal({ onClose, projects = [] }) {
         <div className="modal" id="add-worker-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
                 <h3>Add Worker</h3>
-                <button className="icon-btn close-btn" onClick={onClose}>✖</button>
+                <button className="icon-btn close-btn" onClick={onClose}><X size={18} /></button>
             </div>
             <div className="modal-body">
                 <div className="form-group">

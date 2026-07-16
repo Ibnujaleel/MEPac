@@ -1,4 +1,5 @@
 import React from 'react';
+import { X } from 'lucide-react';
 
 export default function NewRfiModal({ onClose, projects = [], workers = [] }) {
     const eligibleWorkers = workers.filter(w => w.role === 'Supervisor' || w.role === 'Foreman');
@@ -7,7 +8,7 @@ export default function NewRfiModal({ onClose, projects = [], workers = [] }) {
         <div className="modal" id="new-rfi-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
                 <h3>New Request for Information</h3>
-                <button className="icon-btn close-btn" onClick={onClose}>✖</button>
+                <button className="icon-btn close-btn" onClick={onClose}><X size={18} /></button>
             </div>
             <div className="modal-body">
                 <div className="form-group">

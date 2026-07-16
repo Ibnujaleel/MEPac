@@ -1,25 +1,18 @@
 import React from 'react';
+import { X } from 'lucide-react';
 
 export default function AddBlueprintModal({ onClose, projects = [] }) {
     return (
         <div className="modal" id="add-blueprint-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
                 <h3>Add Blueprint to Project</h3>
-                <button className="icon-btn close-btn" onClick={onClose}>✖</button>
+                <button className="icon-btn close-btn" onClick={onClose}><X size={18} /></button>
             </div>
             <div className="modal-body">
+
                 <div className="form-group">
-                    <label>Target Project</label>
-                    <select>
-                        <option value="">Select a project...</option>
-                        {projects.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                    </select>
-                </div>
-                <div className="form-group">
-                    <label>Upload Blueprint (PDF/DWG/Image)</label>
-                    <input type="file" />
+                    <label>Upload Blueprint (PDF/DWG)</label>
+                    <input type="file" accept=".pdf,.dwg" />
                 </div>
                 <div className="form-group">
                     <label>Blueprint Name / Section</label>

@@ -41,8 +41,8 @@ const initialWorkWeek = {
 };
 
 const initialHolidays = [
-    { id: 1, name: 'Republic Day', date: '26 Jan 2026' },
-    { id: 2, name: 'Independence Day', date: '15 Aug 2026' }
+    { id: 1, name: 'Republic Day', date: '26/01' },
+    { id: 2, name: 'Independence Day', date: '15/08' }
 ];
 
 const initialGeofence = {
@@ -61,22 +61,7 @@ const initialAttendanceRules = {
     allowSelfClockIn: true,
     requireReason: true
 };
-// 1. We create the custom component
-function SettingsBanner() {
-    return (
-        <div style={{
-            backgroundColor: 'var(--accent-blue-bg)',
-            padding: '12px',
-            borderRadius: '8px',
-            color: 'var(--accent-blue)',
-            fontWeight: '600',
-            marginBottom: '16px',
-            fontSize: '13px'
-        }}>
-            ℹ️ Pro-tip: You can toggle days in the Standard Work Week to update active shifts.
-        </div>
-    );
-}
+
 
 
 export default function Settings() {
@@ -93,7 +78,8 @@ export default function Settings() {
 
     // UI Input States for Adding Items
     const [newHolidayName, setNewHolidayName] = useState('');
-    const [newHolidayDate, setNewHolidayDate] = useState('');
+    const [newHolidayDay, setNewHolidayDay] = useState('');
+    const [newHolidayMonth, setNewHolidayMonth] = useState('');
     const [showAddHolidayForm, setShowAddHolidayForm] = useState(false);
     const [saveMessage, setSaveMessage] = useState(null);
     const [emailError, setEmailError] = useState('');
@@ -127,16 +113,36 @@ export default function Settings() {
         setWorkWeek(prev => ({ ...prev, [dayKey]: !prev[dayKey] }));
     };
 
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    const formatDateDisplay = (ddmm) => {
+        if (!ddmm) return '';
+        const [day, month] = ddmm.split('/');
+        const monthIdx = parseInt(month, 10) - 1;
+        return `${day} ${monthNames[monthIdx] || month}`;
+    };
+
+    const getDaysForMonth = (month) => {
+        if (!month) return 31;
+        const m = parseInt(month, 10);
+        if ([4, 6, 9, 11].includes(m)) return 30;
+        if (m === 2) return 29;
+        return 31;
+    };
+
     const handleAddHoliday = (e) => {
         e.preventDefault();
-        if (!newHolidayName.trim() || !newHolidayDate.trim()) return;
+        if (!newHolidayName.trim() || !newHolidayDay || !newHolidayMonth) return;
+        const dd = newHolidayDay.padStart(2, '0');
+        const mm = newHolidayMonth.padStart(2, '0');
         setHolidays(prev => [...prev, {
             id: Date.now(),
             name: newHolidayName.trim(),
-            date: newHolidayDate.trim()
+            date: `${dd}/${mm}`
         }]);
         setNewHolidayName('');
-        setNewHolidayDate('');
+        setNewHolidayDay('');
+        setNewHolidayMonth('');
         setShowAddHolidayForm(false);
     };
 
@@ -213,21 +219,18 @@ export default function Settings() {
                 <button
                     className={`settings-top-tab-btn ${activeTab === 'company' ? 'active' : ''}`}
                     onClick={() => setActiveTab('company')}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                     <Building2 size={16} /> Company &amp; Access
                 </button>
                 <button
                     className={`settings-top-tab-btn ${activeTab === 'operational' ? 'active' : ''}`}
                     onClick={() => setActiveTab('operational')}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                     <Sliders size={16} /> Operational Rules
                 </button>
                 <button
                     className={`settings-top-tab-btn ${activeTab === 'alerts' ? 'active' : ''}`}
                     onClick={() => setActiveTab('alerts')}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                     <ShieldAlert size={16} /> Alerts &amp; Governance
                 </button>
@@ -235,7 +238,7 @@ export default function Settings() {
 
             {/* Panels Container */}
             <div className="settings-content">
-                <SettingsBanner />
+
 
                 {/* TAB CONTENT: COMPANY & ACCESS */}
                 {activeTab === 'company' && (
@@ -249,7 +252,7 @@ export default function Settings() {
                                 </div>
                             </div>
 
-                            <div className="form-row">
+                            <div className="form-row" style={{ alignItems: 'stretch' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                     <div className="form-group">
                                         <label>Company Name</label>
@@ -284,49 +287,6 @@ export default function Settings() {
                                             disabled={!isEditing}
                                         />
                                     </div>
-                                </div>
-
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                    <div className="form-group">
-                                        <label>Company Logo</label>
-                                        <input 
-                                            type="file" 
-                                            id="logo-upload-input" 
-                                            accept="image/*" 
-                                            style={{ display: 'none' }} 
-                                            onChange={(e) => {
-                                                if (e.target.files && e.target.files[0]) {
-                                                    const file = e.target.files[0];
-                                                    const previewUrl = URL.createObjectURL(file);
-                                                    setCompanyProfile(prev => ({ ...prev, logo: file.name, logoPreview: previewUrl }));
-                                                }
-                                            }} 
-                                        />
-                                        <div style={{ 
-                                            height: '120px', 
-                                            display: 'flex',
-                                            flexDirection: 'column', 
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            cursor: isEditing ? 'pointer' : 'default', 
-                                            border: '2px dashed var(--border-subtle)',
-                                            borderRadius: 'var(--radius-md)',
-                                            backgroundColor: 'var(--bg-base)',
-                                            transition: 'border-color 0.2s',
-                                            opacity: isEditing ? 1 : 0.6,
-                                            pointerEvents: isEditing ? 'auto' : 'none'
-                                        }} 
-                                        onClick={() => document.getElementById('logo-upload-input').click()}
-                                        onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-blue)'}
-                                        onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
-                                        >
-                                            <UploadCloud size={32} style={{ color: companyProfile.logo !== 'cloud_upload' ? 'var(--accent-green)' : 'var(--accent-blue)', marginBottom: '8px' }} />
-                                            <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>
-                                                {companyProfile.logo !== 'cloud_upload' ? companyProfile.logo : 'Click to upload new logo'}
-                                            </span>
-                                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>PNG, JPG, SVG up to 2MB</span>
-                                        </div>
-                                    </div>
                                     <div className="form-group">
                                         <label>Registered Address</label>
                                         <textarea
@@ -336,6 +296,52 @@ export default function Settings() {
                                             maxLength={300}
                                             disabled={!isEditing}
                                         />
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <label style={{ marginBottom: '6px', fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)' }}>Company Logo</label>
+                                    <input 
+                                        type="file" 
+                                        id="logo-upload-input" 
+                                        accept="image/*" 
+                                        style={{ display: 'none' }} 
+                                        onChange={(e) => {
+                                            if (e.target.files && e.target.files[0]) {
+                                                const file = e.target.files[0];
+                                                const previewUrl = URL.createObjectURL(file);
+                                                setCompanyProfile(prev => ({ ...prev, logo: file.name, logoPreview: previewUrl }));
+                                            }
+                                        }} 
+                                    />
+                                    <div style={{ 
+                                        flex: 1,
+                                        display: 'flex',
+                                        flexDirection: 'column', 
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        cursor: isEditing ? 'pointer' : 'default', 
+                                        border: '2px dashed var(--border-subtle)',
+                                        borderRadius: 'var(--radius-md)',
+                                        backgroundColor: 'var(--bg-base)',
+                                        transition: 'border-color 0.2s',
+                                        opacity: isEditing ? 1 : 0.6,
+                                        pointerEvents: isEditing ? 'auto' : 'none',
+                                        minHeight: '120px'
+                                    }} 
+                                    onClick={() => document.getElementById('logo-upload-input').click()}
+                                    onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-blue)'}
+                                    onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
+                                    >
+                                        {companyProfile.logoPreview ? (
+                                            <img src={companyProfile.logoPreview} alt="Logo" style={{ maxWidth: '80px', maxHeight: '80px', objectFit: 'contain', borderRadius: '8px', marginBottom: '8px' }} />
+                                        ) : (
+                                            <UploadCloud size={32} style={{ color: 'var(--accent-blue)', marginBottom: '8px' }} />
+                                        )}
+                                        <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>
+                                            {companyProfile.logo !== 'cloud_upload' ? companyProfile.logo : 'Click to upload logo'}
+                                        </span>
+                                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>PNG, JPG, SVG up to 2MB</span>
                                     </div>
                                 </div>
                             </div>
@@ -459,9 +465,23 @@ export default function Settings() {
                                             <label style={{ fontSize: '12px' }}>Holiday Name</label>
                                             <input type="text" placeholder="e.g. Christmas Day" value={newHolidayName} onChange={handleHolidayNameChange} maxLength={50} required />
                                         </div>
-                                        <div className="form-group" style={{ flex: 1 }}>
-                                            <label style={{ fontSize: '12px' }}>Date</label>
-                                            <input type="text" placeholder="e.g. 25 Dec 2026" value={newHolidayDate} onChange={(e) => setNewHolidayDate(e.target.value)} required />
+                                        <div className="form-group" style={{ width: '80px' }}>
+                                            <label style={{ fontSize: '12px' }}>Day</label>
+                                            <select value={newHolidayDay} onChange={(e) => setNewHolidayDay(e.target.value)} required>
+                                                <option value="">--</option>
+                                                {Array.from({ length: getDaysForMonth(newHolidayMonth) }, (_, i) => i + 1).map(d => (
+                                                    <option key={d} value={String(d)}>{d}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="form-group" style={{ width: '120px' }}>
+                                            <label style={{ fontSize: '12px' }}>Month</label>
+                                            <select value={newHolidayMonth} onChange={(e) => { setNewHolidayMonth(e.target.value); if (newHolidayDay && parseInt(newHolidayDay) > getDaysForMonth(e.target.value)) setNewHolidayDay(''); }} required>
+                                                <option value="">--</option>
+                                                {monthNames.map((m, i) => (
+                                                    <option key={m} value={String(i + 1)}>{m}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                         <button type="submit" className="btn primary" style={{ height: '38px' }}>Add</button>
                                     </form>
@@ -470,7 +490,7 @@ export default function Settings() {
                                 <ul className="holiday-list">
                                     {holidays.map(h => (
                                         <li className="holiday-item" key={h.id}>
-                                            <span className="holiday-name">{h.date} – {h.name}</span>
+                                            <span className="holiday-name">{formatDateDisplay(h.date)} – {h.name}</span>
                                             <button
                                                 className="btn text-btn"
                                                 style={{ color: isEditing ? 'var(--text-muted)' : 'var(--border-subtle)', display: 'inline-flex', alignItems: 'center' }}

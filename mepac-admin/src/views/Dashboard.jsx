@@ -1,4 +1,5 @@
 import React from 'react';
+import { SlidersHorizontal } from 'lucide-react';
 
 export default function Dashboard({ setActiveView, projects = [] }) {
     return (
@@ -9,55 +10,30 @@ export default function Dashboard({ setActiveView, projects = [] }) {
                     <p className="subtitle">Real-time operational overview.</p>
                 </div>
                 <div className="date-display">
-                    {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                 </div>
             </div>
             
             <div className="metrics-row">
                 <div className="metric-card">
-                    <div className="metric-header">ACTIVE WORKFORCE TODAY</div>
+                    <div className="metric-header">Active Workforce</div>
                     <div className="metric-value">42</div>
-                    <div className="metric-trend positive">↑ 12%</div>
-                    <div className="metric-desc">across 3 projects</div>
+                    <div className="metric-trend positive">↑ 12% vs yesterday</div>
                 </div>
                 <div className="metric-card alert-amber">
-                    <div className="metric-header">ATTENDANCE DISPUTES</div>
+                    <div className="metric-header">Pending Disputes</div>
                     <div className="metric-value">3</div>
-                    <div className="metric-desc highlight-amber">NEEDS ADMIN REVIEW</div>
+                    <div className="metric-desc highlight-amber">Needs review</div>
                 </div>
                 <div className="metric-card alert-red">
-                    <div className="metric-header">ABSENCE REPORTS</div>
+                    <div className="metric-header">Absent Today</div>
                     <div className="metric-value">2</div>
                     <div className="metric-desc">John Doe, Jane Smith</div>
                 </div>
-            </div>
-
-            <div className="dashboard-grid">
-
-                <div className="projects-area panel">
-                    <div className="panel-header" style={{ gridColumn: '1 / -1', marginBottom: 0 }}>
-                        <h3 style={{ margin: 0 }}>Projects Overview</h3>
-                        <button className="btn text-btn" onClick={() => setActiveView('view-projects')}>View All Projects →</button>
-                    </div>
-                    {projects.slice(0, 2).map(project => (
-                        <div className="project-detail-card" key={project.id}>
-                            <div className="project-detail-header">
-                                <span className="project-name">{project.name}</span>
-                                <span className={`status-pill ${project.status === 'Delayed' ? 'solid-red' : 'solid-green'}`}>{project.status}</span>
-                            </div>
-                            <div className="project-detail-body">
-                                <div className="detail-stat"><strong>{project.employeesPresent}</strong> employees currently present</div>
-                                <ul className="employee-list">
-                                    {project.employees.map((emp, i) => (
-                                        <li key={i}><div className="avatar-small blue">{emp.initials}</div> {emp.name} ({emp.role})</li>
-                                    ))}
-                                    {project.employeesPresent > project.employees.length && (
-                                        <li className="more-text">+{project.employeesPresent - project.employees.length} more</li>
-                                    )}
-                                </ul>
-                            </div>
-                        </div>
-                    ))}
+                <div className="metric-card">
+                    <div className="metric-header">Active Projects</div>
+                    <div className="metric-value">{projects.length}</div>
+                    <div className="metric-desc">across all sites</div>
                 </div>
             </div>
 
@@ -65,7 +41,7 @@ export default function Dashboard({ setActiveView, projects = [] }) {
                 <div className="panel-header">
                     <h3>Live Worker Check-in Feed</h3>
                     <div style={{display: 'flex', gap: '8px'}}>
-                        <button className="btn secondary">Filter ⚙️</button>
+                        <button className="btn secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>Filter <SlidersHorizontal size={16} /></button>
                         <button className="btn primary" onClick={() => setActiveView('view-attendance')}>View All Attendance →</button>
                     </div>
                 </div>

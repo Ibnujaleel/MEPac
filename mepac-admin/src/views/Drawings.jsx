@@ -1,4 +1,5 @@
 import React from 'react';
+import { FileText, Eye } from 'lucide-react';
 
 export default function Drawings({ openModal, projects }) {
     return (
@@ -23,13 +24,15 @@ export default function Drawings({ openModal, projects }) {
                                     {project.blueprints.map(bp => (
                                         <li key={bp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                <div style={{ fontSize: '24px' }}>📄</div>
+                                                <div style={{ display: 'flex', alignItems: 'center' }}><FileText size={24} /></div>
                                                 <div>
                                                     <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{bp.name}</div>
                                                     <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{bp.file}</div>
                                                 </div>
                                             </div>
-                                            <button className="btn secondary text-btn">View</button>
+                                            <button className="btn text-btn" style={{ padding: '8px' }} aria-label="View Blueprint">
+                                                <Eye size={18} />
+                                            </button>
                                         </li>
                                     ))}
                                 </ul>
