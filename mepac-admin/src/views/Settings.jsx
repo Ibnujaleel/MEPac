@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { 
     Building2, 
     Users, 
@@ -15,68 +17,34 @@ import {
     CheckSquare
 } from 'lucide-react';
 
-const initialCompanyProfile = {
-    name: 'MEPac Solutions Pvt Ltd',
-    email: 'admin@mepac.com',
-    phone: '5551234567',
-    address: '101 Industrial Park Way, Sector 4\nMetropolis, NY 10001',
-    logo: 'cloud_upload' // Logo upload text placeholder
-};
-
-const initialWorkingHours = {
-    shiftStart: '08:00',
-    shiftEnd: '17:00',
-    lateBuffer: '15 minutes',
-    autoAbsent: '4 hours'
-};
-
-const initialWorkWeek = {
-    M: true,
-    T: true,
-    W: true,
-    T1: true, // Thursday (labeled T in template)
-    F: true,
-    S1: true, // Saturday (labeled S)
-    S2: false // Sunday (labeled S)
-};
-
-const initialHolidays = [
-    { id: 1, name: 'Republic Day', date: '26/01' },
-    { id: 2, name: 'Independence Day', date: '15/08' }
-];
-
-const initialGeofence = {
-    enforceGps: false,
-    radius: 200
-};
-
-const initialAlerts = {
-    silentAlert: '24 hours',
-    proxyReminder: '3 days',
-    disputeResolution: '5 days'
-};
-
-const initialAttendanceRules = {
-    requirePhoto: false,
-    allowSelfClockIn: true,
-    requireReason: true
-};
-
-
-
 export default function Settings() {
     const [activeTab, setActiveTab] = useState('company');
 
-    // Form States
-    const [companyProfile, setCompanyProfile] = useState({ ...initialCompanyProfile });
-    const [workingHours, setWorkingHours] = useState({ ...initialWorkingHours });
-    const [workWeek, setWorkWeek] = useState({ ...initialWorkWeek });
-    const [holidays, setHolidays] = useState([...initialHolidays]);
-    const [geofence, setGeofence] = useState({ ...initialGeofence });
-    const [alerts, setAlerts] = useState({ ...initialAlerts });
-    const [attendanceRules, setAttendanceRules] = useState({ ...initialAttendanceRules });
+    // Convex data
+    const settingsData = useQuery(api.settings.get);
+    const saveSettings = useMutation(api.settings.save);
+    const generateUploadUrl = useMutation(api.settings.generateUploadUrl);
 
-    // UI Input States for Adding Items
+    // Form States
+    const [companyProfile, setCompanyProfile] = useState({
+        name: '', email: '', phone: '', address: '', logo: 'cloud_upload', logoPreview: null
+    });
+    const [workingHours, setWorkingHours] = useState({
+        shiftStart: '08:00', shiftEnd: '17:00', lateBuffer: '15 minutes', autoAbsent: '4 hours'
+    });
+    const [workWeek, setWorkWeek] = useState({
+        M: true, T: true, W: true, T1: true, F: true, S1: true, S2: false
+    });
+    const [holidays, setHolidays] = useState([]);
+    const [geofence, setGeofence] = useState({ enforceGps: false, radius: 200 });
+    const [alerts, setAlerts] = useState({
+        silentAlert: '24 hours', proxyReminder: '3 days', disputeResolution: '5 days'
+    });
+    const [attendanceRules, setAttendanceRules] = useState({
+        requirePhoto: false, allowSelfClockIn: true, requireReason: true
+    });
+
+    // UI States
     const [newHolidayName, setNewHolidayName] = useState('');
     const [newHolidayDay, setNewHolidayDay] = useState('');
     const [newHolidayMonth, setNewHolidayMonth] = useState('');
@@ -84,25 +52,122 @@ export default function Settings() {
     const [saveMessage, setSaveMessage] = useState(null);
     const [emailError, setEmailError] = useState('');
     const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [logoFile, setLogoFile] = useState(null);
+    const [hasLoaded, setHasLoaded] = useState(false);
 
-    const handleSave = () => {
+    // Populate form from Convex data
+    useEffect(() => {
+        if (settingsData && !hasLoaded) {
+            populateFromData(settingsData);
+            setHasLoaded(true);
+        }
+    }, [settingsData, hasLoaded]);
+
+    const populateFromData = (data) => {
+        setCompanyProfile({
+            name: data.companyName || '',
+            email: data.companyEmail || '',
+            phone: data.companyPhone || '',
+            address: data.companyAddress || '',
+            logo: 'cloud_upload',
+            logoPreview: data.logoUrl || null,
+            logoStorageId: data.logoStorageId || null,
+        });
+        setWorkingHours({
+            shiftStart: data.shiftStart || '08:00',
+            shiftEnd: data.shiftEnd || '17:00',
+            lateBuffer: data.lateBuffer || '15 minutes',
+            autoAbsent: data.autoAbsent || '4 hours',
+        });
+        setWorkWeek(data.workWeek || {
+            M: true, T: true, W: true, T1: true, F: true, S1: true, S2: false
+        });
+        setHolidays((data.holidays || []).map((h, i) => ({ ...h, id: i + 1 })));
+        setGeofence({
+            enforceGps: data.enforceGps ?? false,
+            radius: data.geofenceRadius ?? 200,
+        });
+        setAlerts({
+            silentAlert: data.silentAlert || '24 hours',
+            proxyReminder: data.proxyReminder || '3 days',
+            disputeResolution: data.disputeResolution || '5 days',
+        });
+        setAttendanceRules({
+            requirePhoto: data.requirePhoto ?? false,
+            allowSelfClockIn: data.allowSelfClockIn ?? true,
+            requireReason: data.requireReason ?? true,
+        });
+    };
+
+    const handleSave = async () => {
         if (companyProfile.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(companyProfile.email)) {
             setEmailError('Please enter a valid email address.');
             return;
         }
-        setIsEditing(false);
-        setSaveMessage('Settings saved successfully!');
-        setTimeout(() => setSaveMessage(null), 3000);
+        setIsSaving(true);
+
+        try {
+            let logoStorageId = companyProfile.logoStorageId || undefined;
+
+            // Upload logo if a new file was selected
+            if (logoFile) {
+                const uploadUrl = await generateUploadUrl();
+                const result = await fetch(uploadUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": logoFile.type },
+                    body: logoFile,
+                });
+                const { storageId } = await result.json();
+                logoStorageId = storageId;
+            }
+
+            await saveSettings({
+                companyName: companyProfile.name,
+                companyEmail: companyProfile.email,
+                companyPhone: companyProfile.phone,
+                companyAddress: companyProfile.address,
+                ...(logoStorageId ? { logoStorageId } : {}),
+
+                shiftStart: workingHours.shiftStart,
+                shiftEnd: workingHours.shiftEnd,
+                lateBuffer: workingHours.lateBuffer,
+                autoAbsent: workingHours.autoAbsent,
+
+                workWeek,
+
+                holidays: holidays.map(h => ({ name: h.name, date: h.date })),
+
+                enforceGps: geofence.enforceGps,
+                geofenceRadius: geofence.radius,
+
+                silentAlert: alerts.silentAlert,
+                proxyReminder: alerts.proxyReminder,
+                disputeResolution: alerts.disputeResolution,
+
+                requirePhoto: attendanceRules.requirePhoto,
+                allowSelfClockIn: attendanceRules.allowSelfClockIn,
+                requireReason: attendanceRules.requireReason,
+            });
+
+            setIsEditing(false);
+            setLogoFile(null);
+            setSaveMessage('Settings saved successfully!');
+            setTimeout(() => setSaveMessage(null), 3000);
+        } catch (error) {
+            console.error("Failed to save settings:", error);
+            setSaveMessage('Failed to save settings.');
+            setTimeout(() => setSaveMessage(null), 3000);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleDiscard = () => {
-        setCompanyProfile({ ...initialCompanyProfile });
-        setWorkingHours({ ...initialWorkingHours });
-        setWorkWeek({ ...initialWorkWeek });
-        setHolidays([...initialHolidays]);
-        setGeofence({ ...initialGeofence });
-        setAlerts({ ...initialAlerts });
-        setAttendanceRules({ ...initialAttendanceRules });
+        if (settingsData) {
+            populateFromData(settingsData);
+        }
+        setLogoFile(null);
         setEmailError('');
         setIsEditing(false);
         setSaveMessage('Changes discarded.');
@@ -177,6 +242,17 @@ export default function Settings() {
         setNewHolidayName(e.target.value.replace(/[^a-zA-Z\s]/g, ''));
     };
 
+    // Show loading state while data is being fetched
+    if (!settingsData) {
+        return (
+            <section className="view active">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px', color: 'var(--text-muted)' }}>
+                    Loading settings...
+                </div>
+            </section>
+        );
+    }
+
     return (
         <section className="view active">
             <div className="view-header">
@@ -207,8 +283,10 @@ export default function Settings() {
                         <button className="btn primary" onClick={() => setIsEditing(true)}>Edit Settings</button>
                     ) : (
                         <>
-                            <button className="btn secondary" onClick={handleDiscard}>Discard</button>
-                            <button className="btn primary" onClick={handleSave}>Save Changes</button>
+                            <button className="btn secondary" onClick={handleDiscard} disabled={isSaving}>Discard</button>
+                            <button className="btn primary" onClick={handleSave} disabled={isSaving}>
+                                {isSaving ? 'Saving...' : 'Save Changes'}
+                            </button>
                         </>
                     )}
                 </div>
@@ -238,7 +316,6 @@ export default function Settings() {
 
             {/* Panels Container */}
             <div className="settings-content">
-
 
                 {/* TAB CONTENT: COMPANY & ACCESS */}
                 {activeTab === 'company' && (
@@ -310,6 +387,7 @@ export default function Settings() {
                                             if (e.target.files && e.target.files[0]) {
                                                 const file = e.target.files[0];
                                                 const previewUrl = URL.createObjectURL(file);
+                                                setLogoFile(file);
                                                 setCompanyProfile(prev => ({ ...prev, logo: file.name, logoPreview: previewUrl }));
                                             }
                                         }} 
@@ -347,7 +425,7 @@ export default function Settings() {
                             </div>
                         </div>
 
-                        {/* 7. User Management Section */}
+                        {/* User Management Section */}
                         <div className="panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                                 <div className="avatar-large" style={{ backgroundColor: 'var(--bg-base)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -368,7 +446,7 @@ export default function Settings() {
                 {/* TAB CONTENT: OPERATIONAL RULES */}
                 {activeTab === 'operational' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                        {/* 2. Default Working Hours */}
+                        {/* Default Working Hours */}
                         <div className="panel">
                             <div className="panel-header" style={{ marginBottom: '24px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -429,7 +507,7 @@ export default function Settings() {
                             </div>
                         </div>
 
-                        {/* 3. Working Days & Holidays */}
+                        {/* Working Days & Holidays */}
                         <div className="panel">
                             <div className="panel-header" style={{ marginBottom: '24px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -463,7 +541,7 @@ export default function Settings() {
                                     <form onSubmit={handleAddHoliday} style={{ display: 'flex', gap: '12px', padding: '16px', backgroundColor: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', marginBottom: '16px', alignItems: 'flex-end' }}>
                                         <div className="form-group" style={{ flex: 1 }}>
                                             <label style={{ fontSize: '12px' }}>Holiday Name</label>
-                                            <input type="text" placeholder="e.g. Christmas Day" value={newHolidayName} onChange={handleHolidayNameChange} maxLength={50} required />
+                                            <input type="text" placeholder="Holiday name" value={newHolidayName} onChange={handleHolidayNameChange} maxLength={50} required />
                                         </div>
                                         <div className="form-group" style={{ width: '80px' }}>
                                             <label style={{ fontSize: '12px' }}>Day</label>
@@ -505,7 +583,7 @@ export default function Settings() {
                             </div>
                         </div>
 
-                        {/* 6. Geofence Verification */}
+                        {/* Geofence Verification */}
                         <div className="panel">
                             <div className="panel-header" style={{ marginBottom: '24px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -559,7 +637,7 @@ export default function Settings() {
                 {/* TAB CONTENT: ALERTS & GOVERNANCE */}
                 {activeTab === 'alerts' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                        {/* 4. Alert Thresholds */}
+                        {/* Alert Thresholds */}
                         <div className="panel">
                             <div className="panel-header" style={{ marginBottom: '24px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -609,7 +687,7 @@ export default function Settings() {
                             </div>
                         </div>
 
-                        {/* 5. Attendance Rules */}
+                        {/* Attendance Rules */}
                         <div className="panel">
                             <div className="panel-header" style={{ marginBottom: '24px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

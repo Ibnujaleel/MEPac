@@ -1,14 +1,29 @@
 import React from 'react';
-import { Search, Bell, User, LogOut } from 'lucide-react';
+import { Bell, User, LogOut } from 'lucide-react';
 
-export default function Topbar({ activePanel, togglePanel, notifications = [] }) {
+export default function Topbar({ activeView, selectedProject, activePanel, togglePanel, notifications = [] }) {
     const unreadCount = notifications.filter(n => !n.isRead).length;
     
+    const getPageTitle = () => {
+        if (activeView === 'view-project-details' && selectedProject) {
+            return selectedProject.name;
+        }
+        switch (activeView) {
+            case 'view-dashboard': return 'Dashboard';
+            case 'view-projects': return 'Projects Hub';
+            case 'view-workforce': return 'Workforce Directory';
+            case 'view-attendance': return 'Attendance Log';
+            case 'view-rfis': return 'RFIs';
+            case 'view-drawings': return 'Blueprints & Drawings';
+            case 'view-settings': return 'Settings';
+            default: return '';
+        }
+    };
+
     return (
         <header className="topbar" style={{ position: 'relative', zIndex: 1000 }}>
-            <div className="search-container">
-                <span className="icon"><Search size={18} /></span>
-                <input type="text" placeholder="Search logs, projects, workers..." />
+            <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                {getPageTitle()}
             </div>
             <div className="topbar-actions">
                 <button className="icon-btn notif-btn" onClick={(e) => togglePanel('notifications', e)}>

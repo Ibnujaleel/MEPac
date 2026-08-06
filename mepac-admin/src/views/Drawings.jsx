@@ -14,7 +14,7 @@ export default function Drawings({ openModal, projects }) {
             
             <div className="drawings-grid" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 {projects.map(project => (
-                    <div className="panel" key={project.id}>
+                    <div className="panel" key={project._id}>
                         <div className="panel-header">
                             <h3>{project.name}</h3>
                         </div>

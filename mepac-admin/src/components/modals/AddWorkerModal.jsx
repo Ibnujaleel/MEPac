@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 export default function AddWorkerModal({ onClose }) {
     const [pin, setPin] = useState('');
     const [fullName, setFullName] = useState('');
     const [mobile, setMobile] = useState('');
+    const [role, setRole] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const createWorker = useMutation(api.workers.create);
 
     const handlePinChange = (e) => {
         const value = e.target.value.replace(/\D/g, '');
@@ -26,6 +32,35 @@ export default function AddWorkerModal({ onClose }) {
         }
     };
 
+    const handleSubmit = async () => {
+        if (!fullName.trim() || !role || !mobile || mobile.length !== 10) return;
+        setIsSubmitting(true);
+
+        try {
+            // Split full name into first and last name
+            const nameParts = fullName.trim().split(/\s+/);
+            const firstName = nameParts[0];
+            const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
+            await createWorker({
+                firstName,
+                lastName,
+                role,
+                mobile,
+                ...(pin ? { pin } : {}),
+            });
+
+            onClose();
+        } catch (error) {
+            console.error("Failed to add worker:", error);
+            alert("Failed to add worker. " + (error.message || "Please try again."));
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const isValid = fullName.trim() && role && mobile.length === 10;
+
     return (
         <div className="modal" id="add-worker-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
@@ -39,11 +74,11 @@ export default function AddWorkerModal({ onClose }) {
                 </div>
                 <div className="form-group">
                     <label>Role</label>
-                    <select>
+                    <select value={role} onChange={(e) => setRole(e.target.value)}>
                         <option value="">Select a role...</option>
-                        <option>Supervisor</option>
-                        <option>Foreman</option>
-                        <option>Technician</option>
+                        <option value="Supervisor">Supervisor</option>
+                        <option value="Foreman">Foreman</option>
+                        <option value="Technician">Technician</option>
                     </select>
                 </div>
                 <div className="form-group">
@@ -67,8 +102,14 @@ export default function AddWorkerModal({ onClose }) {
                 </div>
             </div>
             <div className="modal-footer">
-                <button className="btn secondary" onClick={onClose}>Cancel</button>
-                <button className="btn primary">Add Worker</button>
+                <button className="btn secondary" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+                <button
+                    className="btn primary"
+                    onClick={handleSubmit}
+                    disabled={isSubmitting || !isValid}
+                >
+                    {isSubmitting ? 'Adding...' : 'Add Worker'}
+                </button>
             </div>
         </div>
     );

@@ -17,7 +17,7 @@ export default function NewRfiModal({ onClose, projects = [], workers = [] }) {
                         <option value="" disabled>Select a project...</option>
                         <option value="none">Not Specific to Project</option>
                         {projects.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
+                            <option key={p._id} value={p._id}>{p.name}</option>
                         ))}
                     </select>
                 </div>

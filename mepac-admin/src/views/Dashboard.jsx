@@ -1,7 +1,7 @@
 import React from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 
-export default function Dashboard({ setActiveView, projects = [] }) {
+export default function Dashboard({ setActiveView, projects = [], workforce = [] }) {
     return (
         <section className="view active">
             <div className="view-header">
@@ -16,19 +16,19 @@ export default function Dashboard({ setActiveView, projects = [] }) {
             
             <div className="metrics-row">
                 <div className="metric-card">
-                    <div className="metric-header">Active Workforce</div>
-                    <div className="metric-value">42</div>
-                    <div className="metric-trend positive">↑ 12% vs yesterday</div>
+                    <div className="metric-header">Total Workforce</div>
+                    <div className="metric-value">{workforce.length}</div>
+                    <div className="metric-desc">registered workers</div>
                 </div>
                 <div className="metric-card alert-amber">
                     <div className="metric-header">Pending Disputes</div>
-                    <div className="metric-value">3</div>
+                    <div className="metric-value">0</div>
                     <div className="metric-desc highlight-amber">Needs review</div>
                 </div>
                 <div className="metric-card alert-red">
                     <div className="metric-header">Absent Today</div>
-                    <div className="metric-value">2</div>
-                    <div className="metric-desc">John Doe, Jane Smith</div>
+                    <div className="metric-value">0</div>
+                    <div className="metric-desc">No data yet</div>
                 </div>
                 <div className="metric-card">
                     <div className="metric-header">Active Projects</div>
@@ -57,40 +57,9 @@ export default function Dashboard({ setActiveView, projects = [] }) {
                     </thead>
                     <tbody>
                         <tr>
-                            <td>
-                                <div className="worker-cell">
-                                    <div className="avatar-small blue">MA</div>
-                                    Michael Adams
-                                </div>
+                            <td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                                No recent check-ins today.
                             </td>
-                            <td>Electrician</td>
-                            <td>Grand Tower MEP</td>
-                            <td>08:02 AM</td>
-                            <td><span className="status-pill outline-blue">Self</span></td>
-                        </tr>
-                        <tr className="row-amber">
-                            <td>
-                                <div className="worker-cell">
-                                    <div className="avatar-small amber">SJ</div>
-                                    Sarah Jenkins
-                                </div>
-                            </td>
-                            <td>Plumber</td>
-                            <td>Grand Tower MEP</td>
-                            <td>08:05 AM</td>
-                            <td><span className="status-pill outline-amber">Proxy</span></td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <div className="worker-cell">
-                                    <div className="avatar-small blue">DR</div>
-                                    David Rodriguez
-                                </div>
-                            </td>
-                            <td>HVAC Tech</td>
-                            <td>Mall Extension</td>
-                            <td>08:12 AM</td>
-                            <td><span className="status-pill outline-blue">Self</span></td>
                         </tr>
                     </tbody>
                 </table>

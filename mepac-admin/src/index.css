@@ -141,10 +141,13 @@ button {
 }
 
 .logo-icon {
-    width: 32px;
-    height: 32px;
-    background: var(--accent-blue);
+    display: block;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
     border-radius: var(--radius-md);
+    object-fit: contain;
 }
 
 .logo-text h1 {
@@ -407,6 +410,18 @@ button {
 
 .btn.secondary:hover {
     background-color: var(--bg-surface-hover);
+}
+
+.btn.danger {
+    background-color: var(--accent-red);
+    color: white;
+    border: 1px solid transparent;
+}
+
+.btn.danger:hover {
+    background-color: #dc2626;
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
 }
 
 /* Panels */
@@ -1654,4 +1669,9 @@ input:checked+.slider:before {
     background: var(--bg-surface);
     border-radius: 0 0 var(--radius-md) var(--radius-md);
     overflow: hidden;
+}
+
+@keyframes menuSlideIn {
+    from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }

@@ -60,18 +60,24 @@ export default function AttendanceLog({ setActiveView, projects = [] }) {
                         </tr>
                     </thead>
                     <tbody>
-                        {projects.slice(0, 4).map(project => (
-                            <tr key={project.id}>
-                                <td style={{ fontWeight: 500 }}>{project.name}</td>
-                                <td>{project.location}</td>
-                                <td>
-                                    <div className="progress-cell">
-                                        <span>{project.progress}</span>
-                                        <div className="progress-bar"><div className="fill green" style={{width: `${project.percent}%`}}></div></div>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
+                        {projects.slice(0, 4).map(project => {
+                            const totalAssigned = project.totalAssigned || 0;
+                            const present = project.employeesPresent || 0;
+                            const percent = totalAssigned > 0 ? Math.round((present / totalAssigned) * 100) : 0;
+                            const progressText = `${present}/${totalAssigned} (${percent}%)`;
+                            return (
+                                <tr key={project._id}>
+                                    <td style={{ fontWeight: 500 }}>{project.name}</td>
+                                    <td>{project.location}</td>
+                                    <td>
+                                        <div className="progress-cell">
+                                            <span>{progressText}</span>
+                                            <div className="progress-bar"><div className="fill green" style={{width: `${percent}%`}}></div></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>

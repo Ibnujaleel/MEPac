@@ -5,7 +5,7 @@ export default function ReopenProjectModal({ onClose, onConfirm, project }) {
     if (!project) return null;
 
     const handleConfirm = () => {
-        onConfirm(project.id);
+        onConfirm(project._id);
         onClose();
     };
 

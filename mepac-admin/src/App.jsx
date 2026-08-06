@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './index.css';
+
+// Convex Imports
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../convex/_generated/api";
 
 // Layout Components
 import Sidebar from './components/layout/Sidebar';
@@ -24,138 +28,107 @@ import UploadRevisionModal from './components/modals/UploadRevisionModal';
 import AddBlueprintModal from './components/modals/AddBlueprintModal';
 import EndProjectModal from './components/modals/EndProjectModal';
 import ReopenProjectModal from './components/modals/ReopenProjectModal';
+import EditProjectModal from './components/modals/EditProjectModal';
 
-const demoProjects = [
-  {
-    id: 'p1',
-    name: 'Grand Tower MEP',
-    client: 'Aaryan Patel',
-    location: 'Mumbai, MH',
-    imageUrl: '/images/project_1.png',
-    description: 'High-rise commercial tower requiring extensive MEP integration and smart building systems.',
-    progress: '14/18 (77%)',
-    percent: 77,
-    employeesPresent: 14,
-    totalAssigned: 18,
-    employees: [
-      { initials: 'MA', name: 'Michael Adams', role: 'Technician' },
-      { initials: 'SJ', name: 'Sarah Jenkins', role: 'Supervisor' },
-      { initials: 'RJ', name: 'Robert Jones', role: 'Foreman' }
-    ],
-    checkIns: [
-      { name: 'Michael Adams', initials: 'MA', time: '06:55 AM', type: 'Biometric', status: 'Verified' },
-      { name: 'Sarah Jenkins', initials: 'SJ', time: '07:15 AM', type: 'Proxy', status: 'Pending Approval' },
-      { name: 'Robert Jones', initials: 'RJ', time: '07:22 AM', type: 'Biometric', status: 'Verified' }
-    ],
-    blueprints: [
-      { id: 'b1', name: 'Electrical Layout - Floor 1', file: 'electrical_f1.pdf' },
-      { id: 'b2', name: 'Plumbing - Basement', file: 'plumbing_b1.dwg' }
-    ]
-  },
-  {
-    id: 'p2',
-    name: 'Mall Extension',
-    client: 'Rajesh Sharma',
-    location: 'Delhi, NCR',
-    imageUrl: '/images/project_2.png',
-    description: 'Expansion of existing commercial footprint with high-capacity HVAC and plumbing upgrades.',
-    progress: '9/12 (75%)',
-    percent: 75,
-    employeesPresent: 28,
-    totalAssigned: 35,
-    employees: [
-      { initials: 'DR', name: 'David Rodriguez', role: 'Foreman' },
-      { initials: 'AL', name: 'Alex Lee', role: 'Technician' },
-      { initials: 'MG', name: 'Maria Garcia', role: 'Supervisor' }
-    ],
-    checkIns: [
-      { name: 'David Rodriguez', initials: 'DR', time: '07:01 AM', type: 'Biometric', status: 'Verified' },
-      { name: 'Alex Lee', initials: 'AL', time: '07:12 AM', type: 'Biometric', status: 'Verified' },
-      { name: 'Maria Garcia', initials: 'MG', time: '07:45 AM', type: 'Proxy', status: 'Verified' }
-    ],
-    blueprints: [
-      { id: 'b3', name: 'HVAC Main Grid', file: 'hvac_main.pdf' }
-    ]
-  },
-  {
-    id: 'p3',
-    name: 'City Center Mall',
-    client: 'Modern Builders Inc.',
-    location: 'Bangalore, KA',
-    imageUrl: '/images/project_3.png',
-    description: 'Urban shopping center requiring specialized ventilation and electrical distribution.',
-    progress: '5/10 (50%)',
-    percent: 100,
-    employeesPresent: 0,
-    totalAssigned: 10,
-    isCompleted: true,
-    employees: [
-      { initials: 'JB', name: 'James Brown', role: 'Technician' },
-      { initials: 'LT', name: 'Lisa Taylor', role: 'Foreman' },
-      { initials: 'KW', name: 'Kevin White', role: 'Supervisor' }
-    ],
-    blueprints: []
-  },
-  {
-    id: 'p4',
-    name: 'Sunrise Apartments',
-    client: 'Sunrise Devs',
-    location: 'Pune, MH',
-    imageUrl: '/images/project_4.png',
-    description: 'Premium residential complex with individualized MEP metering and centralized boiler systems.',
-    progress: '19/22 (86%)',
-    percent: 86,
-    employeesPresent: 19,
-    totalAssigned: 22,
-    employees: [
-      { initials: 'CP', name: 'Chris Parker', role: 'Supervisor' },
-      { initials: 'EM', name: 'Emily Moore', role: 'Technician' },
-      { initials: 'RN', name: 'Richard Nelson', role: 'Foreman' }
-    ],
-    blueprints: [
-      { id: 'b4', name: 'Floor Plan - Type A', file: 'floorplan_A.pdf' }
-    ]
-  }
+// Valid view IDs for hash routing
+const VALID_VIEWS = [
+  'view-dashboard', 'view-projects', 'view-project-details',
+  'view-workforce', 'view-attendance', 'view-rfis',
+  'view-drawings', 'view-settings'
 ];
 
-const demoNotifications = [
-  { id: 1, title: 'New Proxy Request', time: '10 mins ago', desc: 'Sarah Jenkins submitted a proxy attendance request for Grand Tower MEP.', isRead: false },
-  { id: 2, title: 'Attendance Dispute Filed', time: '1 hour ago', desc: 'Marcus Vance contested a supervisor override on Site 4B.', isRead: false },
-  { id: 3, title: 'Silent Site Alert', time: '2 hours ago', desc: 'No check-ins recorded at Mall Extension this morning.', isRead: true }
-];
+function getInitialState() {
+  const hash = window.location.hash.slice(1); // remove #
+  if (!hash) return { view: 'view-dashboard', projectId: null };
+
+  const params = new URLSearchParams(hash);
+  const view = params.get('view') || 'view-dashboard';
+  const projectId = params.get('project') || null;
+
+  if (!VALID_VIEWS.includes(view)) return { view: 'view-dashboard', projectId: null };
+  return { view, projectId };
+}
 
 export default function App() {
-  const [activeView, setActiveView] = useState('view-dashboard');
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [projects, setProjects] = useState(demoProjects);
-  const [notifications, setNotifications] = useState(demoNotifications);
-  const [activeModal, setActiveModal] = useState(null); // 'add-project', 'add-worker', etc.
-  const [activePanel, setActivePanel] = useState(null); // 'notifications', 'profile', or null
+  const initial = getInitialState();
+  const [activeView, setActiveViewRaw] = useState(initial.view);
+  const [selectedProjectId, setSelectedProjectId] = useState(initial.projectId);
+  const [activeModal, setActiveModal] = useState(null);
+  const [activePanel, setActivePanel] = useState(null);
+
+  // Sync view to URL hash
+  const setActiveView = useCallback((view) => {
+    setActiveViewRaw(view);
+    // Clear project when navigating away from project details
+    if (view !== 'view-project-details') {
+      updateHash(view, null);
+    }
+  }, []);
+
+  const updateHash = (view, projectId) => {
+    const params = new URLSearchParams();
+    params.set('view', view);
+    if (projectId) params.set('project', projectId);
+    window.location.hash = params.toString();
+  };
+
+  // Update hash when project detail is entered
+  useEffect(() => {
+    updateHash(activeView, activeView === 'view-project-details' ? selectedProjectId : null);
+  }, [activeView, selectedProjectId]);
+
+  // Listen for browser back/forward
+  useEffect(() => {
+    const handleHashChange = () => {
+      const state = getInitialState();
+      setActiveViewRaw(state.view);
+      if (state.projectId) setSelectedProjectId(state.projectId);
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Convex Queries
+  const projects = useQuery(api.projects.list) || [];
+  const workforce = useQuery(api.workers.list) || [];
+  const notifications = useQuery(api.notifications.list) || [];
+
+  // Convex Mutations
+  const toggleComplete = useMutation(api.projects.toggleComplete);
+  const assignWorker = useMutation(api.assignments.assign);
+  const removeWorker = useMutation(api.assignments.remove);
+  const removeNotification = useMutation(api.notifications.remove);
+
+  // Find the selected project from the list
+  const selectedProject = projects.find(p => p._id === selectedProjectId) || null;
 
   const handleEndProject = (projectId) => {
-    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, isCompleted: true } : p));
-    if (selectedProject?.id === projectId) {
-      setSelectedProject(prev => ({ ...prev, isCompleted: true }));
-    }
+    toggleComplete({ projectId });
   };
 
   const handleReopenProject = (projectId) => {
-    setProjects(prev => prev.map(p => p.id === projectId ? { ...p, isCompleted: false } : p));
-    if (selectedProject?.id === projectId) {
-      setSelectedProject(prev => ({ ...prev, isCompleted: false }));
-    }
+    toggleComplete({ projectId });
   };
 
   const openModal = (modalId) => setActiveModal(modalId);
   const closeModal = () => setActiveModal(null);
 
   const togglePanel = (panel, e) => {
-    console.log('togglePanel called with:', panel);
     if (e) e.stopPropagation();
     setActivePanel(prev => prev === panel ? null : panel);
   };
-  console.log('App render. activePanel is:', activePanel);
-  const deleteNotification = (id) => setNotifications(prev => prev.filter(n => n.id !== id));
+
+  const deleteNotification = (id) => {
+    removeNotification({ notificationId: id });
+  };
+
+  const handleAddWorkerToProject = (projectId, worker) => {
+    assignWorker({ projectId, workerId: worker._id });
+  };
+
+  const handleRemoveWorkerFromProject = (projectId, workerId) => {
+    removeWorker({ projectId, workerId });
+  };
 
   return (
     <div className="app-layout">
@@ -169,7 +142,6 @@ export default function App() {
             backdropFilter: activePanel === 'notifications' ? 'blur(2px)' : 'none'
           }}
           onClick={() => {
-            console.log('Click catcher clicked!');
             setActivePanel(null);
           }}
         />
@@ -177,13 +149,13 @@ export default function App() {
       <Sidebar activeView={activeView} setActiveView={setActiveView} />
 
       <main className="main-content">
-        <Topbar activePanel={activePanel} togglePanel={togglePanel} notifications={notifications} />
+        <Topbar activeView={activeView} selectedProject={selectedProject} activePanel={activePanel} togglePanel={togglePanel} notifications={notifications} />
 
         <div className="views-container">
-          {activeView === 'view-dashboard' && <Dashboard setActiveView={setActiveView} projects={projects} />}
-          {activeView === 'view-projects' && <ProjectsHub openModal={openModal} projects={projects} setActiveView={setActiveView} setSelectedProject={setSelectedProject} />}
-          {activeView === 'view-project-details' && <ProjectDetail project={selectedProject} setActiveView={setActiveView} openModal={openModal} />}
-          {activeView === 'view-workforce' && <Workforce openModal={openModal} />}
+          {activeView === 'view-dashboard' && <Dashboard setActiveView={setActiveView} projects={projects} workforce={workforce} />}
+          {activeView === 'view-projects' && <ProjectsHub openModal={openModal} projects={projects} setActiveView={setActiveView} setSelectedProject={(project) => setSelectedProjectId(project ? project._id : null)} />}
+          {activeView === 'view-project-details' && <ProjectDetail projectId={selectedProjectId} project={selectedProject} workforce={workforce} setActiveView={setActiveView} openModal={openModal} onAssignWorker={handleAddWorkerToProject} onRemoveWorker={handleRemoveWorkerFromProject} />}
+          {activeView === 'view-workforce' && <Workforce openModal={openModal} workforce={workforce} />}
           {activeView === 'view-attendance' && <AttendanceLog setActiveView={setActiveView} projects={projects} />}
           {activeView === 'view-rfis' && <RFIs openModal={openModal} />}
           {activeView === 'view-drawings' && <Drawings openModal={openModal} projects={projects} />}
@@ -203,9 +175,10 @@ export default function App() {
         <div className="modal-overlay active">
           {activeModal === 'add-project' && <AddProjectModal onClose={closeModal} />}
           {activeModal === 'add-worker' && <AddWorkerModal onClose={closeModal} projects={projects} />}
-          {activeModal === 'new-rfi' && <NewRfiModal onClose={closeModal} projects={projects} workers={projects.flatMap(p => p.employees.map(e => ({ ...e, project: p.name })))} />}
+          {activeModal === 'new-rfi' && <NewRfiModal onClose={closeModal} projects={projects} workers={workforce} />}
           {activeModal === 'upload-revision' && <UploadRevisionModal onClose={closeModal} projects={projects} />}
-          {activeModal === 'add-blueprint' && <AddBlueprintModal onClose={closeModal} projects={projects} />}
+          {activeModal === 'add-blueprint' && <AddBlueprintModal onClose={closeModal} projects={projects} projectId={selectedProjectId} />}
+          {activeModal === 'edit-project' && <EditProjectModal onClose={closeModal} project={selectedProject} />}
           {activeModal === 'end-project' && <EndProjectModal onClose={closeModal} onConfirm={handleEndProject} project={selectedProject} />}
           {activeModal === 'reopen-project' && <ReopenProjectModal onClose={closeModal} onConfirm={handleReopenProject} project={selectedProject} />}
         </div>

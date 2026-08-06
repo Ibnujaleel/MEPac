@@ -14,7 +14,7 @@ export default function Sidebar({ activeView, setActiveView }) {
     return (
         <aside className="sidebar">
             <div className="sidebar-header">
-                <div className="logo-icon"></div>
+                <img src="/images/logo.png" alt="MEPac Logo" className="logo-icon" />
                 <div className="logo-text">
                     <h1>MEPac</h1>
                     <span>Admin Console</span>

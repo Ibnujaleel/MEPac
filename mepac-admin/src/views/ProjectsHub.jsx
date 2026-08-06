@@ -1,5 +1,6 @@
 import React from 'react';
-import { MapPin, Users } from 'lucide-react';
+import { MapPin, Users, Building2, Search, Filter } from 'lucide-react';
+import { getProjectColor } from '../utils/colors';
 
 export default function ProjectsHub({ openModal, projects, setActiveView, setSelectedProject }) {
     const activeProjects = projects.filter(p => !p.isCompleted);
@@ -25,8 +26,11 @@ export default function ProjectsHub({ openModal, projects, setActiveView, setSel
             <h3 style={{ marginTop: '24px', marginBottom: '8px', color: 'var(--text-primary)' }}>Active Projects</h3>
             <div className="project-card-grid">
                 {activeProjects.map(project => (
-                    <div className="project-card" key={project.id} onClick={() => handleProjectClick(project)}>
-                        <div className="project-card-img" style={{ backgroundImage: `url(${project.imageUrl})` }}></div>
+                    <div className="project-card" key={project._id} onClick={() => handleProjectClick(project)}>
+                        <div className="project-card-img" style={{ 
+                            backgroundImage: project.imageUrl ? `url(${project.imageUrl})` : 'none',
+                            backgroundColor: project.imageUrl ? 'transparent' : getProjectColor(project._id)
+                        }}></div>
                         <div className="project-card-content">
                             <h3>{project.name}</h3>
                             <p className="client-text">{project.client}</p>
@@ -34,16 +38,6 @@ export default function ProjectsHub({ openModal, projects, setActiveView, setSel
                             <div className="project-meta">
                                 <span><MapPin size={14} /> {project.location}</span>
                                 <span><Users size={14} /> {project.employeesPresent} / {project.totalAssigned} Active</span>
-                            </div>
-
-                            <div className="progress-container">
-                                <div className="progress-labels">
-                                    <span>Headcount Progress</span>
-                                    <span>{project.progress}</span>
-                                </div>
-                                <div className="progress-bar">
-                                    <div className="fill green" style={{ width: `${project.percent}%` }}></div>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -56,8 +50,11 @@ export default function ProjectsHub({ openModal, projects, setActiveView, setSel
                     <h3 style={{ marginTop: '48px', marginBottom: '8px', color: 'var(--text-primary)' }}>Past Projects</h3>
                     <div className="project-card-grid">
                         {pastProjects.map(project => (
-                            <div className="project-card completed" key={project.id} onClick={() => handleProjectClick(project)}>
-                                <div className="project-card-img" style={{ backgroundImage: `url(${project.imageUrl})` }}></div>
+                            <div className="project-card completed" key={project._id} onClick={() => handleProjectClick(project)}>
+                                <div className="project-card-img" style={{ 
+                                    backgroundImage: project.imageUrl ? `url(${project.imageUrl})` : 'none',
+                                    backgroundColor: project.imageUrl ? 'transparent' : getProjectColor(project._id)
+                                }}></div>
                                 <div className="project-card-content">
                                     <h3>{project.name}</h3>
                                     <p className="client-text">{project.client}</p>
