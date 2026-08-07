@@ -6,8 +6,8 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../convex/_generated/api";
 
 // Layout Components
-import Sidebar from './components/layout/Sidebar';
-import Topbar from './components/layout/Topbar';
+import Sidebar from './components/Layout/Sidebar';
+import Topbar from './components/Layout/Topbar';
 
 // View Components
 import Dashboard from './views/Dashboard';
