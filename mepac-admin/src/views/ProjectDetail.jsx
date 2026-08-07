@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, MapPin, Users, Plus, Search, X, UserPlus, Trash2, FileText, Download, MoreVertical, Pencil, Upload, XCircle, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, MapPin, Users, Plus, Search, X, UserPlus, Trash2, FileText, Download, MoreVertical, Pencil, Upload, XCircle, RefreshCcw, Star, Eye } from 'lucide-react';
 import { getProjectColor } from '../utils/colors';
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import DeleteBlueprintModal from '../components/modals/DeleteBlueprintModal';
 
 export default function ProjectDetail({ projectId, project, setActiveView, openModal, workforce, onAssignWorker, onRemoveWorker }) {
     const [activeRoleTab, setActiveRoleTab] = useState('All');
@@ -11,11 +12,32 @@ export default function ProjectDetail({ projectId, project, setActiveView, openM
     const [assignSearch, setAssignSearch] = useState('');
     const [workerToRemove, setWorkerToRemove] = useState(null);
     const [showMenu, setShowMenu] = useState(false);
+    const [bpMenuOpenId, setBpMenuOpenId] = useState(null);
+    const [blueprintToDelete, setBlueprintToDelete] = useState(null);
     const menuRef = useRef(null);
 
     const employees = useQuery(api.assignments.getByProject, projectId ? { projectId } : "skip") || [];
     const checkIns = useQuery(api.checkIns.getByProject, projectId ? { projectId } : "skip") || [];
-    const blueprints = useQuery(api.blueprints.getByProject, projectId ? { projectId } : "skip") || [];
+    const rawBlueprints = useQuery(api.blueprints.getByProject, projectId ? { projectId } : "skip") || [];
+    // Sort: pinnedAt first, then by creation time (newest first)
+    const blueprints = [...rawBlueprints].sort((a, b) => {
+        const timeA = a.pinnedAt ?? a._creationTime;
+        const timeB = b.pinnedAt ?? b._creationTime;
+        return timeB - timeA;
+    });
+
+    const removeBlueprint = useMutation(api.blueprints.remove);
+    const setBlueprintAsLatest = useMutation(api.blueprints.setAsLatest);
+
+    const handleBpDelete = async (blueprintId) => {
+        try { await removeBlueprint({ blueprintId }); } catch (err) { console.error(err); }
+        setBlueprintToDelete(null);
+    };
+
+    const handleBpSetAsLatest = async (blueprintId) => {
+        setBpMenuOpenId(null);
+        try { await setBlueprintAsLatest({ blueprintId }); } catch (err) { console.error(err); }
+    };
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -27,6 +49,20 @@ export default function ProjectDetail({ projectId, project, setActiveView, openM
         if (showMenu) document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showMenu]);
+
+    // Close blueprint menu on any outside click
+    useEffect(() => {
+        if (!bpMenuOpenId) return;
+        let listener;
+        const timer = setTimeout(() => {
+            listener = () => setBpMenuOpenId(null);
+            document.addEventListener('click', listener, { once: true });
+        }, 0);
+        return () => {
+            clearTimeout(timer);
+            if (listener) document.removeEventListener('click', listener);
+        };
+    }, [bpMenuOpenId]);
 
     if (!project) return null;
 
@@ -314,25 +350,105 @@ export default function ProjectDetail({ projectId, project, setActiveView, openM
                 </div>
 
                 <div className="project-detail-sidebar">
+                    {/* Blueprint delete confirmation modal */}
+                    {blueprintToDelete && (
+                        <DeleteBlueprintModal
+                            blueprint={blueprintToDelete}
+                            onConfirm={handleBpDelete}
+                            onClose={() => setBlueprintToDelete(null)}
+                        />
+                    )}
+
+
+
                     <div className="panel" style={{ marginBottom: '24px' }}>
                         <div className="panel-header">
                             <h3>Project Blueprints</h3>
                         </div>
                         <div style={{ padding: '0 16px 16px 16px' }}>
-                            {(blueprints || []).length > 0 ? blueprints.map(bp => (
-                                <div key={bp._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border-subtle)' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                        <div style={{ padding: '8px', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)' }}>
-                                            <FileText size={18} color="var(--accent-blue)" />
+                            {(blueprints || []).length > 0 ? blueprints.map((bp, idx) => (
+                                <div key={bp._id} style={{ position: 'relative', zIndex: bpMenuOpenId === bp._id ? 10 : 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                                        <div style={{ flexShrink: 0, padding: '7px', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)' }}>
+                                            <FileText size={16} color="var(--accent-blue)" />
                                         </div>
-                                        <div>
-                                            <div style={{ fontWeight: 500, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{bp.name}</div>
-                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{bp.latestRevision ? `v${bp.currentVersion}` : ''}</div>
+                                        <div style={{ minWidth: 0 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                                                <span style={{ fontWeight: 500, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{bp.name}</span>
+                                                {idx === 0 && (
+                                                    <span style={{
+                                                        fontSize: '0.6rem', fontWeight: 700,
+                                                        letterSpacing: '0.04em', padding: '1px 5px',
+                                                        borderRadius: '999px', background: 'var(--accent-blue)',
+                                                        color: 'white', textTransform: 'uppercase', flexShrink: 0,
+                                                    }}>Latest</span>
+                                                )}
+                                            </div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{bp.latestRevision ? `v${bp.currentVersion}` : ''}</div>
                                         </div>
                                     </div>
-                                    <button className="icon-btn" title="Download" style={{ color: 'var(--text-muted)' }} onClick={() => bp.fileUrl && window.open(bp.fileUrl)}>
-                                        <Download size={16} />
-                                    </button>
+
+                                    {/* Actions */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+                                        <button className="icon-btn" title="Open file" style={{ color: 'var(--text-muted)', width: '30px', height: '30px' }} onClick={() => bp.fileUrl && window.open(bp.fileUrl, '_blank')}>
+                                            <Eye size={14} />
+                                        </button>
+
+                                        {/* Three-dot menu */}
+                                        <div style={{ position: 'relative', zIndex: 99 }}>
+                                            <button
+                                                className="icon-btn"
+                                                style={{ width: '30px', height: '30px', color: 'var(--text-muted)' }}
+                                                aria-label="More options"
+                                                onClick={e => { e.stopPropagation(); setBpMenuOpenId(bpMenuOpenId === bp._id ? null : bp._id); }}
+                                            >
+                                                <MoreVertical size={14} />
+                                            </button>
+
+                                            {bpMenuOpenId === bp._id && (
+                                                <div style={{
+                                                    position: 'absolute', right: 0, top: '100%',
+                                                    marginTop: '4px', background: 'white',
+                                                    border: '1px solid var(--border-subtle)',
+                                                    borderRadius: '10px',
+                                                    boxShadow: '0 8px 24px -4px rgba(0,0,0,0.14)',
+                                                    minWidth: '165px', zIndex: 200, overflow: 'hidden',
+                                                }}>
+                                                    {idx !== 0 && (
+                                                        <button
+                                                            onClick={() => handleBpSetAsLatest(bp._id)}
+                                                            style={{
+                                                                display: 'flex', alignItems: 'center', gap: '8px',
+                                                                width: '100%', padding: '10px 12px',
+                                                                background: 'transparent', border: 'none',
+                                                                fontSize: '0.82rem', fontWeight: 500,
+                                                                color: 'var(--accent-blue)', cursor: 'pointer',
+                                                            }}
+                                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.06)'}
+                                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                        >
+                                                            <Star size={13} /> Set as Latest
+                                                        </button>
+                                                    )}
+                                                    {idx !== 0 && <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '2px 0' }} />}
+                                                    <button
+                                                        onClick={() => { setBpMenuOpenId(null); setBlueprintToDelete(bp); }}
+                                                        style={{
+                                                            display: 'flex', alignItems: 'center', gap: '8px',
+                                                            width: '100%', padding: '10px 12px',
+                                                            background: 'transparent', border: 'none',
+                                                            fontSize: '0.82rem', fontWeight: 600,
+                                                            color: '#dc2626', cursor: 'pointer',
+                                                        }}
+                                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(220,38,38,0.05)'}
+                                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                    >
+                                                        <Trash2 size={13} /> Delete Drawing
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             )) : (
                                 <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '16px 0' }}>
@@ -341,6 +457,7 @@ export default function ProjectDetail({ projectId, project, setActiveView, openM
                             )}
                         </div>
                     </div>
+
 
                     <div className="panel">
                         <div className="panel-header">

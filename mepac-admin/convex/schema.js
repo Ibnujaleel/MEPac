@@ -55,6 +55,7 @@ export default defineSchema({
     projectId: v.id("projects"),
     name: v.string(), // e.g. "Electrical Layout - Floor 1"
     currentVersion: v.number(), // Latest version number
+    pinnedAt: v.optional(v.number()), // Timestamp set when user manually pins as "Latest"
   }).index("by_project", ["projectId"]),
 
   // ── Blueprint Revisions (version history) ─────────────────────

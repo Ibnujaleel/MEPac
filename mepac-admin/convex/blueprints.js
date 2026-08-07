@@ -3,6 +3,39 @@ import { v } from "convex/values";
 
 // ── Queries ─────────────────────────────────────────────────────
 
+// Get ALL blueprints across every project (used by the global Drawings view)
+export const listAll = query({
+  args: {},
+  handler: async (ctx) => {
+    const blueprints = await ctx.db.query("blueprints").collect();
+
+    const enriched = await Promise.all(
+      blueprints.map(async (bp) => {
+        const latestRevision = await ctx.db
+          .query("blueprintRevisions")
+          .withIndex("by_blueprint_and_version", (q) =>
+            q.eq("blueprintId", bp._id).eq("version", bp.currentVersion)
+          )
+          .first();
+
+        let fileUrl = null;
+        if (latestRevision?.fileStorageId) {
+          fileUrl = await ctx.storage.getUrl(latestRevision.fileStorageId);
+        }
+
+        return {
+          ...bp,
+          fileUrl,
+          latestRevision: latestRevision || null,
+        };
+      })
+    );
+
+    // Sort newest first (by Convex creation time)
+    return enriched.sort((a, b) => b._creationTime - a._creationTime);
+  },
+});
+
 // Get all blueprints for a project (with latest revision URL)
 export const getByProject = query({
   args: { projectId: v.id("projects") },
@@ -35,7 +68,8 @@ export const getByProject = query({
       })
     );
 
-    return enriched;
+    // Sort newest first
+    return enriched.sort((a, b) => b._creationTime - a._creationTime);
   },
 });
 
@@ -129,3 +163,36 @@ export const generateUploadUrl = mutation({
     return await ctx.storage.generateUploadUrl();
   },
 });
+
+// Pin a blueprint as the "Latest" — it will sort to the top
+export const setAsLatest = mutation({
+  args: { blueprintId: v.id("blueprints") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.blueprintId, { pinnedAt: Date.now() });
+  },
+});
+
+// Delete a blueprint and all its revisions (including stored files)
+export const remove = mutation({
+  args: { blueprintId: v.id("blueprints") },
+  handler: async (ctx, args) => {
+    const revisions = await ctx.db
+      .query("blueprintRevisions")
+      .withIndex("by_blueprint", (q) => q.eq("blueprintId", args.blueprintId))
+      .collect();
+
+    for (const rev of revisions) {
+      try {
+        if (rev.fileStorageId) {
+          await ctx.storage.delete(rev.fileStorageId);
+        }
+      } catch (_) {
+        // File may have already been removed
+      }
+      await ctx.db.delete(rev._id);
+    }
+
+    await ctx.db.delete(args.blueprintId);
+  },
+});
+
