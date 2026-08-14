@@ -29,11 +29,11 @@ export default function EditProjectModal({ onClose, project }) {
     if (!project) return null;
 
     const handleProjectNameChange = (e) => {
-        setProjectName(e.target.value.replace(/[^a-zA-Z0-9-_\s]/g, ''));
+        setProjectName(e.target.value);
     };
 
     const handleClientChange = (e) => {
-        setClient(e.target.value.replace(/[^a-zA-Z\s]/g, ''));
+        setClient(e.target.value);
     };
 
     const handleSubmit = async () => {

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, MoreVertical, Key, UserX, UserCheck, Trash2, X, AlertTriangle, Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { Search, MoreVertical, Key, UserX, UserCheck, Trash2, X, AlertTriangle, Copy, Check, ChevronDown, ChevronRight, RefreshCcw } from 'lucide-react';
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
@@ -17,6 +17,9 @@ export default function Workforce({ openModal, workforce = [] }) {
     // Convex Mutations
     const toggleStatus = useMutation(api.workers.toggleStatus);
     const removeWorker = useMutation(api.workers.remove);
+    const resetPinMutation = useMutation(api.workers.resetPin);
+    const [workerToResetPin, setWorkerToResetPin] = useState(null);
+    const [isResettingPin, setIsResettingPin] = useState(false);
 
     const menuRef = useRef(null);
 
@@ -410,11 +413,11 @@ export default function Workforce({ openModal, workforce = [] }) {
                                     fontFamily: 'monospace',
                                     color: 'var(--accent-blue)'
                                 }}>
-                                    {workerForPin.pin || '123456'}
+                                    {workerForPin.adminPin || '—'}
                                 </span>
                                 <button 
                                     className="icon-btn" 
-                                    onClick={() => handleCopyPin(workerForPin.pin || '123456')}
+                                    onClick={() => handleCopyPin(workerForPin.adminPin || '')}
                                     title="Copy PIN"
                                     style={{ padding: '6px' }}
                                 >
@@ -422,12 +425,28 @@ export default function Workforce({ openModal, workforce = [] }) {
                                 </button>
                             </div>
                             {copiedPin && <div style={{ fontSize: '12px', color: '#22c55e', fontWeight: 500 }}>PIN copied to clipboard!</div>}
+
+                            {!workerForPin.pinIsDefault && (
+                                <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'rgba(245, 158, 11, 0.08)', border: '1px solid var(--accent-amber-border)', borderRadius: 'var(--radius-md)', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                    This worker has changed their PIN. The above is the admin-set default.
+                                </div>
+                            )}
                         </div>
 
-                        <div className="modal-footer">
+                        <div className="modal-footer" style={{ display: 'flex', gap: '12px' }}>
+                            <button 
+                                className="btn secondary" 
+                                style={{ flex: 1, justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '6px' }} 
+                                onClick={() => {
+                                    setWorkerToResetPin(workerForPin);
+                                    setWorkerForPin(null);
+                                }}
+                            >
+                                <RefreshCcw size={16} /> Reset PIN to Default
+                            </button>
                             <button 
                                 className="btn primary" 
-                                style={{ width: '100%', justifyContent: 'center', display: 'flex' }} 
+                                style={{ flex: 1, justifyContent: 'center', display: 'flex' }} 
                                 onClick={() => setWorkerForPin(null)}
                             >
                                 Done
@@ -502,6 +521,50 @@ export default function Workforce({ openModal, workforce = [] }) {
                         <div className="modal-footer">
                             <button className="btn secondary" onClick={() => setWorkerToDelete(null)}>Cancel</button>
                             <button className="btn danger" onClick={handleDeleteWorker}>Delete Worker</button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            {/* Reset PIN Confirmation Modal */}
+            {workerToResetPin && createPortal(
+                <div className="modal-overlay active" style={{ zIndex: 3000 }} onClick={() => setWorkerToResetPin(null)}>
+                    <div className="modal" style={{ maxWidth: '420px' }} onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <RefreshCcw size={20} color="#eab308" />
+                                </div>
+                                <h3 style={{ margin: 0 }}>Reset PIN to Default</h3>
+                            </div>
+                            <button className="icon-btn close-btn" onClick={() => setWorkerToResetPin(null)}><X size={18} /></button>
+                        </div>
+                        
+                        <div className="modal-body">
+                            <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                                Are you sure you want to reset <strong>{workerToResetPin.name}</strong>'s PIN back to the admin-set default (<strong style={{ fontFamily: 'monospace' }}>{workerToResetPin.adminPin}</strong>)?
+                            </p>
+                            <p style={{ margin: '12px 0 0 0', color: 'var(--text-secondary)', lineHeight: '1.5', fontSize: '13px' }}>
+                                The worker will be required to change their PIN on their next login.
+                            </p>
+                        </div>
+                        
+                        <div className="modal-footer">
+                            <button className="btn secondary" onClick={() => setWorkerToResetPin(null)} disabled={isResettingPin}>Cancel</button>
+                            <button className="btn primary" disabled={isResettingPin} onClick={async () => {
+                                setIsResettingPin(true);
+                                try {
+                                    await resetPinMutation({ workerId: workerToResetPin._id });
+                                    setWorkerToResetPin(null);
+                                } catch (err) {
+                                    alert('Failed to reset PIN: ' + (err.message || 'Unknown error'));
+                                } finally {
+                                    setIsResettingPin(false);
+                                }
+                            }}>
+                                {isResettingPin ? 'Resetting...' : 'Reset PIN'}
+                            </button>
                         </div>
                     </div>
                 </div>,

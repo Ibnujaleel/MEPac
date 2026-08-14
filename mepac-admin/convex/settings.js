@@ -1,5 +1,12 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
+
+async function requireAdminAuth(ctx) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) throw new Error("Unauthorized");
+  return userId;
+}
 
 // Default settings used when no settings document exists yet
 const DEFAULTS = {
@@ -107,6 +114,7 @@ export const save = mutation({
     requireReason: v.boolean(),
   },
   handler: async (ctx, args) => {
+    await requireAdminAuth(ctx);
     const existing = await ctx.db.query("settings").first();
 
     if (existing) {
@@ -120,6 +128,7 @@ export const save = mutation({
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdminAuth(ctx);
     return await ctx.storage.generateUploadUrl();
   },
 });

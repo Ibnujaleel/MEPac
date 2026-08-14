@@ -1,7 +1,12 @@
 import React from 'react';
 import { Bell, User, LogOut } from 'lucide-react';
+import { useAuthActions } from "@convex-dev/auth/react";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 export default function Topbar({ activeView, selectedProject, activePanel, togglePanel, notifications = [] }) {
+    const { signOut } = useAuthActions();
+    const currentUser = useQuery(api.adminUsers.current);
     const unreadCount = notifications.filter(n => !n.isRead).length;
     
     const getPageTitle = () => {
@@ -34,9 +39,9 @@ export default function Topbar({ activeView, selectedProject, activePanel, toggl
                     <div 
                         className="avatar" 
                         onClick={(e) => togglePanel('profile', e)}
-                        style={{ marginLeft: '12px', width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', cursor: 'pointer' }}
+                        style={{ marginLeft: '12px', width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', cursor: 'pointer', textTransform: 'uppercase' }}
                     >
-                        <span style={{ pointerEvents: 'none' }}>C</span>
+                        <span style={{ pointerEvents: 'none' }}>{currentUser?.email ? currentUser.email.charAt(0) : 'U'}</span>
                     </div>
                     
                     {activePanel === 'profile' && (
@@ -55,16 +60,17 @@ export default function Topbar({ activeView, selectedProject, activePanel, toggl
                             overflow: 'hidden'
                         }}>
                             <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-                                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>CEO Account</div>
-                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>admin@mepac.com</div>
+                                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Admin Account</div>
+                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{currentUser?.email || 'Loading...'}</div>
                             </div>
                             <div style={{ padding: '8px' }}>
                                 <button className="btn text-btn" style={{ width: '100%', textAlign: 'left', padding: '8px 12px', justifyContent: 'flex-start', gap: '8px' }} onClick={() => togglePanel('profile', null)}><User size={16} /> View Profile</button>
                             </div>
                             <div style={{ padding: '8px', borderTop: '1px solid var(--border-subtle)' }}>
-                                <button className="btn text-btn" style={{ width: '100%', textAlign: 'left', padding: '8px 12px', color: 'var(--accent-red)', justifyContent: 'flex-start', gap: '8px' }} onClick={() => {
+                                <button className="btn text-btn" style={{ width: '100%', textAlign: 'left', padding: '8px 12px', color: 'var(--accent-red)', justifyContent: 'flex-start', gap: '8px' }} onClick={async () => {
                                     togglePanel('profile', null);
-                                    alert('You have successfully logged out of the demo account.');
+                                    window.location.hash = ''; // clear hash so next user goes to dashboard
+                                    await signOut();
                                 }}><LogOut size={16} /> Log Out</button>
                             </div>
                         </div>

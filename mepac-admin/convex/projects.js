@@ -1,5 +1,12 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
+
+async function requireAdminAuth(ctx) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) throw new Error("Unauthorized");
+  return userId;
+}
 
 // ── Queries ─────────────────────────────────────────────────────
 
@@ -8,7 +15,6 @@ export const list = query({
   handler: async (ctx) => {
     const projects = await ctx.db.query("projects").collect();
 
-    // Enrich each project with assignment counts and today's check-in count
     const enriched = await Promise.all(
       projects.map(async (project) => {
         const assignments = await ctx.db
@@ -16,7 +22,6 @@ export const list = query({
           .withIndex("by_project", (q) => q.eq("projectId", project._id))
           .collect();
 
-        // Get today's check-ins
         const now = new Date();
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
         const checkIns = await ctx.db
@@ -25,7 +30,6 @@ export const list = query({
           .collect();
         const todayCheckIns = checkIns.filter((c) => c.checkInTime >= startOfDay);
 
-        // Get project image URL if stored
         let imageUrl = null;
         if (project.imageStorageId) {
           imageUrl = await ctx.storage.getUrl(project.imageStorageId);
@@ -77,7 +81,7 @@ export const get = query({
   },
 });
 
-// ── Mutations ───────────────────────────────────────────────────
+// ── Mutations (Admin-protected) ──────────────────────────────────
 
 export const create = mutation({
   args: {
@@ -89,6 +93,7 @@ export const create = mutation({
     imageStorageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
+    await requireAdminAuth(ctx);
     return await ctx.db.insert("projects", {
       ...args,
       isCompleted: false,
@@ -107,8 +112,8 @@ export const update = mutation({
     imageStorageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
+    await requireAdminAuth(ctx);
     const { projectId, ...updates } = args;
-    // Remove undefined values
     const cleanUpdates = Object.fromEntries(
       Object.entries(updates).filter(([_, v]) => v !== undefined)
     );
@@ -119,6 +124,7 @@ export const update = mutation({
 export const toggleComplete = mutation({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
+    await requireAdminAuth(ctx);
     const project = await ctx.db.get(args.projectId);
     if (!project) throw new Error("Project not found");
     await ctx.db.patch(args.projectId, { isCompleted: !project.isCompleted });
@@ -128,6 +134,7 @@ export const toggleComplete = mutation({
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdminAuth(ctx);
     return await ctx.storage.generateUploadUrl();
   },
 });

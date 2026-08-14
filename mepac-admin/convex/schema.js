@@ -1,7 +1,10 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { authTables } from "@convex-dev/auth/server";
 
 export default defineSchema({
+  ...authTables,
+
   // ── Global Workforce ──────────────────────────────────────────
   workers: defineTable({
     workerCode: v.optional(v.string()),
@@ -12,8 +15,10 @@ export default defineSchema({
       v.literal("Foreman"),
       v.literal("Technician")
     ),
-    mobile: v.string(), // Validated in mutations: digits only, exactly 10
-    pin: v.optional(v.string()),
+    mobile: v.string(), // Used only for workerLogin lookup; never returned to frontend
+    adminPin: v.string(), // Set by admin; shown in admin panel for reset reference
+    pin: v.string(),     // Worker's own PIN; never returned to frontend
+    pinIsDefault: v.boolean(), // true = worker has not yet changed their PIN
     isActive: v.boolean(),
   }),
 
@@ -21,10 +26,10 @@ export default defineSchema({
   projects: defineTable({
     name: v.string(),
     client: v.string(),
-    location: v.string(), // Human-readable (e.g. "Mumbai, MH")
+    location: v.string(),
     latitude: v.optional(v.float64()),
     longitude: v.optional(v.float64()),
-    imageStorageId: v.optional(v.id("_storage")), // Convex File Storage
+    imageStorageId: v.optional(v.id("_storage")),
     isCompleted: v.boolean(),
   }),
 
@@ -41,8 +46,8 @@ export default defineSchema({
   checkIns: defineTable({
     projectId: v.id("projects"),
     workerId: v.id("workers"),
-    checkInTime: v.number(), // Unix timestamp
-    checkOutTime: v.optional(v.number()), // Unix timestamp — defaults to 4:00 PM if not set
+    checkInTime: v.number(),
+    checkOutTime: v.optional(v.number()),
     type: v.union(v.literal("Self"), v.literal("Proxy")),
     status: v.union(v.literal("Verified"), v.literal("Pending Approval")),
   })
@@ -53,18 +58,18 @@ export default defineSchema({
   // ── Blueprints / Drawings ─────────────────────────────────────
   blueprints: defineTable({
     projectId: v.id("projects"),
-    name: v.string(), // e.g. "Electrical Layout - Floor 1"
-    currentVersion: v.number(), // Latest version number
-    pinnedAt: v.optional(v.number()), // Timestamp set when user manually pins as "Latest"
+    name: v.string(),
+    currentVersion: v.number(),
+    pinnedAt: v.optional(v.number()),
   }).index("by_project", ["projectId"]),
 
   // ── Blueprint Revisions (version history) ─────────────────────
   blueprintRevisions: defineTable({
     blueprintId: v.id("blueprints"),
     version: v.number(),
-    fileStorageId: v.id("_storage"), // Convex File Storage
-    uploadedAt: v.number(), // Unix timestamp
-    uploadedBy: v.optional(v.string()), // Name (optional until auth is added)
+    fileStorageId: v.id("_storage"),
+    uploadedAt: v.number(),
+    uploadedBy: v.optional(v.string()),
   })
     .index("by_blueprint", ["blueprintId"])
     .index("by_blueprint_and_version", ["blueprintId", "version"]),
@@ -73,26 +78,21 @@ export default defineSchema({
   notifications: defineTable({
     title: v.string(),
     desc: v.string(),
-    createdAt: v.number(), // Unix timestamp
+    createdAt: v.number(),
     isRead: v.boolean(),
   }).index("by_created", ["createdAt"]),
 
   // ── Settings (Singleton) ──────────────────────────────────────
   settings: defineTable({
-    // Company Profile
     companyName: v.string(),
     companyEmail: v.string(),
     companyPhone: v.string(),
     companyAddress: v.string(),
     logoStorageId: v.optional(v.id("_storage")),
-
-    // Working Hours
     shiftStart: v.string(),
     shiftEnd: v.string(),
     lateBuffer: v.string(),
     autoAbsent: v.string(),
-
-    // Work Week (Mon-Sun)
     workWeek: v.object({
       M: v.boolean(),
       T: v.boolean(),
@@ -102,25 +102,23 @@ export default defineSchema({
       S1: v.boolean(),
       S2: v.boolean(),
     }),
-
-    // Holidays array
     holidays: v.array(v.object({
       name: v.string(),
-      date: v.string(), // "DD/MM" format
+      date: v.string(),
     })),
-
-    // Geofence
     enforceGps: v.boolean(),
     geofenceRadius: v.number(),
-
-    // Alert Thresholds
     silentAlert: v.string(),
     proxyReminder: v.string(),
     disputeResolution: v.string(),
-
-    // Attendance Rules
     requirePhoto: v.boolean(),
     allowSelfClockIn: v.boolean(),
     requireReason: v.boolean(),
   }),
+
+  // ── Invited Admins ────────────────────────────────────────────
+  invitedAdmins: defineTable({
+    email: v.string(),
+    invitedAt: v.number(),
+  }).index("by_email", ["email"]),
 });

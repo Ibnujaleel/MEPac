@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# AI assistant files
+.agents/
+.claude/
+AGENTS.md
+CLAUDE.md
+skills-lock.json

@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@auth/core": "^0.41.3",
+    "@convex-dev/auth": "^0.0.94",
     "convex": "^1.42.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.24.0",

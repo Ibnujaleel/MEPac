@@ -20,8 +20,8 @@ export default function AddWorkerModal({ onClose }) {
     };
 
     const handleNameChange = (e) => {
-        // Remove digits and special characters (letters and spaces only)
-        setFullName(e.target.value.replace(/[^a-zA-Z\s]/g, ''));
+        // Remove digits and special characters (letters, spaces, and periods only)
+        setFullName(e.target.value.replace(/[^a-zA-Z\s.]/g, ''));
     };
 
     const handleMobileChange = (e) => {
@@ -42,12 +42,15 @@ export default function AddWorkerModal({ onClose }) {
             const firstName = nameParts[0];
             const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
+            // If no PIN set, default to last 6 digits of mobile
+            const adminPin = pin || mobile.slice(-6);
+
             await createWorker({
                 firstName,
                 lastName,
                 role,
                 mobile,
-                ...(pin ? { pin } : {}),
+                adminPin,
             });
 
             onClose();

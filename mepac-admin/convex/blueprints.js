@@ -1,9 +1,15 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
+
+async function requireAdminAuth(ctx) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) throw new Error("Unauthorized");
+  return userId;
+}
 
 // ── Queries ─────────────────────────────────────────────────────
 
-// Get ALL blueprints across every project (used by the global Drawings view)
 export const listAll = query({
   args: {},
   handler: async (ctx) => {
@@ -23,20 +29,14 @@ export const listAll = query({
           fileUrl = await ctx.storage.getUrl(latestRevision.fileStorageId);
         }
 
-        return {
-          ...bp,
-          fileUrl,
-          latestRevision: latestRevision || null,
-        };
+        return { ...bp, fileUrl, latestRevision: latestRevision || null };
       })
     );
 
-    // Sort newest first (by Convex creation time)
     return enriched.sort((a, b) => b._creationTime - a._creationTime);
   },
 });
 
-// Get all blueprints for a project (with latest revision URL)
 export const getByProject = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
@@ -45,7 +45,6 @@ export const getByProject = query({
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
 
-    // Enrich with the latest revision file URL
     const enriched = await Promise.all(
       blueprints.map(async (bp) => {
         const latestRevision = await ctx.db
@@ -60,20 +59,14 @@ export const getByProject = query({
           fileUrl = await ctx.storage.getUrl(latestRevision.fileStorageId);
         }
 
-        return {
-          ...bp,
-          fileUrl,
-          latestRevision: latestRevision || null,
-        };
+        return { ...bp, fileUrl, latestRevision: latestRevision || null };
       })
     );
 
-    // Sort newest first
     return enriched.sort((a, b) => b._creationTime - a._creationTime);
   },
 });
 
-// Get all revisions for a specific blueprint
 export const getRevisions = query({
   args: { blueprintId: v.id("blueprints") },
   handler: async (ctx, args) => {
@@ -82,7 +75,6 @@ export const getRevisions = query({
       .withIndex("by_blueprint", (q) => q.eq("blueprintId", args.blueprintId))
       .collect();
 
-    // Enrich with file URLs
     const enriched = await Promise.all(
       revisions.map(async (rev) => {
         let fileUrl = null;
@@ -93,14 +85,12 @@ export const getRevisions = query({
       })
     );
 
-    // Sort by version descending (newest first)
     return enriched.sort((a, b) => b.version - a.version);
   },
 });
 
-// ── Mutations ───────────────────────────────────────────────────
+// ── Mutations (Admin-protected) ──────────────────────────────────
 
-// Create a new blueprint with its first revision
 export const create = mutation({
   args: {
     projectId: v.id("projects"),
@@ -109,6 +99,8 @@ export const create = mutation({
     uploadedBy: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdminAuth(ctx);
+
     const blueprintId = await ctx.db.insert("blueprints", {
       projectId: args.projectId,
       name: args.name,
@@ -127,7 +119,6 @@ export const create = mutation({
   },
 });
 
-// Upload a new revision for an existing blueprint
 export const uploadRevision = mutation({
   args: {
     blueprintId: v.id("blueprints"),
@@ -135,15 +126,14 @@ export const uploadRevision = mutation({
     uploadedBy: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    await requireAdminAuth(ctx);
+
     const blueprint = await ctx.db.get(args.blueprintId);
     if (!blueprint) throw new Error("Blueprint not found");
 
     const newVersion = blueprint.currentVersion + 1;
-
-    // Update the blueprint's current version
     await ctx.db.patch(args.blueprintId, { currentVersion: newVersion });
 
-    // Create the new revision
     await ctx.db.insert("blueprintRevisions", {
       blueprintId: args.blueprintId,
       version: newVersion,
@@ -156,26 +146,27 @@ export const uploadRevision = mutation({
   },
 });
 
-// Generate an upload URL for Convex File Storage
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireAdminAuth(ctx);
     return await ctx.storage.generateUploadUrl();
   },
 });
 
-// Pin a blueprint as the "Latest" — it will sort to the top
 export const setAsLatest = mutation({
   args: { blueprintId: v.id("blueprints") },
   handler: async (ctx, args) => {
+    await requireAdminAuth(ctx);
     await ctx.db.patch(args.blueprintId, { pinnedAt: Date.now() });
   },
 });
 
-// Delete a blueprint and all its revisions (including stored files)
 export const remove = mutation({
   args: { blueprintId: v.id("blueprints") },
   handler: async (ctx, args) => {
+    await requireAdminAuth(ctx);
+
     const revisions = await ctx.db
       .query("blueprintRevisions")
       .withIndex("by_blueprint", (q) => q.eq("blueprintId", args.blueprintId))
@@ -183,11 +174,9 @@ export const remove = mutation({
 
     for (const rev of revisions) {
       try {
-        if (rev.fileStorageId) {
-          await ctx.storage.delete(rev.fileStorageId);
-        }
+        if (rev.fileStorageId) await ctx.storage.delete(rev.fileStorageId);
       } catch (_) {
-        // File may have already been removed
+        // File may already be removed
       }
       await ctx.db.delete(rev._id);
     }
@@ -195,4 +184,3 @@ export const remove = mutation({
     await ctx.db.delete(args.blueprintId);
   },
 });
-

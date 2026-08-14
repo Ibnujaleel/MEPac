@@ -1,10 +1,16 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { getInitials } from "./workers";
+
+async function requireAdminAuth(ctx) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) throw new Error("Unauthorized");
+  return userId;
+}
 
 // ── Queries ─────────────────────────────────────────────────────
 
-// Get all workers assigned to a project (enriched with name/initials)
 export const getByProject = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
@@ -18,7 +24,14 @@ export const getByProject = query({
         const worker = await ctx.db.get(a.workerId);
         if (!worker) return null;
         return {
-          ...worker,
+          _id: worker._id,
+          workerCode: worker.workerCode,
+          firstName: worker.firstName,
+          lastName: worker.lastName,
+          role: worker.role,
+          isActive: worker.isActive,
+          adminPin: worker.adminPin,
+          pinIsDefault: worker.pinIsDefault,
           assignmentId: a._id,
           initials: getInitials(worker.firstName, worker.lastName),
           name: `${worker.firstName} ${worker.lastName}`,
@@ -30,7 +43,6 @@ export const getByProject = query({
   },
 });
 
-// Get all projects a worker is assigned to
 export const getByWorker = query({
   args: { workerId: v.id("workers") },
   handler: async (ctx, args) => {
@@ -40,16 +52,14 @@ export const getByWorker = query({
       .collect();
 
     const projects = await Promise.all(
-      assignments.map(async (a) => {
-        return await ctx.db.get(a.projectId);
-      })
+      assignments.map(async (a) => await ctx.db.get(a.projectId))
     );
 
     return projects.filter(Boolean);
   },
 });
 
-// ── Mutations ───────────────────────────────────────────────────
+// ── Mutations (Admin-protected) ──────────────────────────────────
 
 export const assign = mutation({
   args: {
@@ -57,7 +67,8 @@ export const assign = mutation({
     workerId: v.id("workers"),
   },
   handler: async (ctx, args) => {
-    // Check if already assigned
+    await requireAdminAuth(ctx);
+
     const existing = await ctx.db
       .query("projectAssignments")
       .withIndex("by_project_and_worker", (q) =>
@@ -65,9 +76,7 @@ export const assign = mutation({
       )
       .first();
 
-    if (existing) {
-      throw new Error("Worker is already assigned to this project");
-    }
+    if (existing) throw new Error("Worker is already assigned to this project");
 
     return await ctx.db.insert("projectAssignments", {
       projectId: args.projectId,
@@ -82,6 +91,8 @@ export const remove = mutation({
     workerId: v.id("workers"),
   },
   handler: async (ctx, args) => {
+    await requireAdminAuth(ctx);
+
     const assignment = await ctx.db
       .query("projectAssignments")
       .withIndex("by_project_and_worker", (q) =>
@@ -89,9 +100,7 @@ export const remove = mutation({
       )
       .first();
 
-    if (!assignment) {
-      throw new Error("Worker is not assigned to this project");
-    }
+    if (!assignment) throw new Error("Worker is not assigned to this project");
 
     await ctx.db.delete(assignment._id);
   },

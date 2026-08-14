@@ -16,9 +16,11 @@ import {
     AlertTriangle, 
     CheckSquare
 } from 'lucide-react';
+import ManageUsers from './ManageUsers';
 
 export default function Settings() {
     const [activeTab, setActiveTab] = useState('company');
+    const [showManageUsers, setShowManageUsers] = useState(false);
 
     // Convex data
     const settingsData = useQuery(api.settings.get);
@@ -253,6 +255,14 @@ export default function Settings() {
         );
     }
 
+    if (showManageUsers) {
+        return (
+            <section className="view active">
+                <ManageUsers onBack={() => setShowManageUsers(false)} />
+            </section>
+        );
+    }
+
     return (
         <section className="view active">
             <div className="view-header">
@@ -436,7 +446,7 @@ export default function Settings() {
                                     <p className="subtitle" style={{ fontSize: '13px', marginTop: '4px' }}>Manage user accounts, roles, and permissions.</p>
                                 </div>
                             </div>
-                            <button className="btn primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }} onClick={() => alert('User management panel loaded.')}>
+                            <button className="btn primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }} onClick={() => setShowManageUsers(true)}>
                                 Manage Users <ArrowRight size={18} />
                             </button>
                         </div>
