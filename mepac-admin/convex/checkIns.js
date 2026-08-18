@@ -11,18 +11,34 @@ async function requireAdminAuth(ctx) {
   return userId;
 }
 
+// ── IST Timezone Helpers (UTC+5:30) ─────────────────────────────
+
+function getStartOfDayIST(timestamp = Date.now()) {
+  const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+  const istDate = new Date(timestamp + IST_OFFSET_MS);
+  const year = istDate.getUTCFullYear();
+  const month = istDate.getUTCMonth();
+  const date = istDate.getUTCDate();
+  return Date.UTC(year, month, date) - IST_OFFSET_MS;
+}
+
+function formatTimeIST(timestamp) {
+  if (!timestamp) return null;
+  return new Date(timestamp).toLocaleTimeString("en-US", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 // ── Queries ─────────────────────────────────────────────────────
 
 // Get today's check-ins for a project (admin-only)
 export const getByProject = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
-    const now = new Date();
-    const startOfDay = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    ).getTime();
+    const startOfDay = getStartOfDayIST();
 
     const allCheckIns = await ctx.db
       .query("checkIns")
@@ -42,6 +58,8 @@ export const getByProject = query({
           ...checkIn,
           name: `${worker.firstName} ${worker.lastName}`,
           initials: getInitials(worker.firstName, worker.lastName),
+          checkInTimeStr: formatTimeIST(checkIn.checkInTime),
+          checkOutTimeStr: formatTimeIST(checkIn.checkOutTime),
         };
       })
     );
@@ -51,14 +69,7 @@ export const getByProject = query({
 });
 
 // ── Worker-Facing Mutations (authenticated by workerId + PIN) ────
-// These are called from the worker mobile app.
-// No admin session required — identity is verified by PIN instead.
 
-/**
- * Worker login: authenticate by mobile + PIN.
- * Returns worker profile info (no mobile, no PIN fields).
- * The returned workerId is used for all subsequent worker mutations.
- */
 export const workerLogin = mutation({
   args: {
     mobile: v.string(),
@@ -84,11 +95,6 @@ export const workerLogin = mutation({
   },
 });
 
-/**
- * Worker check-in: authenticated by workerId + PIN.
- * Returns the new check-in ID, plus a requiresPinChange flag
- * so the worker app knows to prompt a PIN update on first login.
- */
 export const checkIn = mutation({
   args: {
     workerId: v.id("workers"),
@@ -99,15 +105,37 @@ export const checkIn = mutation({
   handler: async (ctx, args) => {
     const worker = await verifyWorkerPin(ctx.db, args.workerId, args.pin);
 
+    const startOfDay = getStartOfDayIST();
+    const existingCheckIns = await ctx.db
+      .query("checkIns")
+      .withIndex("by_worker", (q) => q.eq("workerId", args.workerId))
+      .collect();
+
+    const todayCheckIn = existingCheckIns.find(
+      (c) => c.checkInTime >= startOfDay
+    );
+
     const status = args.type === "Self" ? "Verified" : "Pending Approval";
 
-    const checkInId = await ctx.db.insert("checkIns", {
-      projectId: args.projectId,
-      workerId: args.workerId,
-      checkInTime: Date.now(),
-      type: args.type,
-      status,
-    });
+    let checkInId;
+    if (todayCheckIn) {
+      checkInId = todayCheckIn._id;
+      await ctx.db.replace(todayCheckIn._id, {
+        projectId: args.projectId,
+        workerId: args.workerId,
+        checkInTime: Date.now(),
+        type: args.type,
+        status,
+      });
+    } else {
+      checkInId = await ctx.db.insert("checkIns", {
+        projectId: args.projectId,
+        workerId: args.workerId,
+        checkInTime: Date.now(),
+        type: args.type,
+        status,
+      });
+    }
 
     return {
       checkInId,
@@ -116,9 +144,6 @@ export const checkIn = mutation({
   },
 });
 
-/**
- * Worker self-checkout: authenticated by workerId + PIN.
- */
 export const workerCheckOut = mutation({
   args: {
     workerId: v.id("workers"),
@@ -131,17 +156,12 @@ export const workerCheckOut = mutation({
     const checkIn = await ctx.db.get(args.checkInId);
     if (!checkIn) throw new Error("Check-in not found");
 
-    // Ensure worker can only check out their own record
     if (checkIn.workerId !== args.workerId) throw new Error("Unauthorized");
 
     await ctx.db.patch(args.checkInId, { checkOutTime: Date.now() });
   },
 });
 
-/**
- * Worker PIN change: verifies current PIN, then updates to new PIN.
- * Sets pinIsDefault = false so the forced-change prompt goes away.
- */
 export const workerChangePin = mutation({
   args: {
     workerId: v.id("workers"),
@@ -164,10 +184,6 @@ export const workerChangePin = mutation({
 
 // ── Admin-Only Mutations ─────────────────────────────────────────
 
-/**
- * Admin manual checkout override (e.g. forgot to clock out).
- * Defaults to 4:00 PM of the check-in day if no time provided.
- */
 export const checkOut = mutation({
   args: {
     checkInId: v.id("checkIns"),
@@ -195,9 +211,6 @@ export const checkOut = mutation({
   },
 });
 
-/**
- * Approve a proxy check-in. Admin-only.
- */
 export const approveProxy = mutation({
   args: { checkInId: v.id("checkIns") },
   handler: async (ctx, args) => {
@@ -205,3 +218,504 @@ export const approveProxy = mutation({
     await ctx.db.patch(args.checkInId, { status: "Verified" });
   },
 });
+
+// ── PWA Attendance & Check-In Functions ───────────────────────────
+
+export const getTodayStatus = query({
+  args: { workerId: v.id("workers") },
+  handler: async (ctx, args) => {
+    const startOfDay = getStartOfDayIST();
+
+    const workerCheckIns = await ctx.db
+      .query("checkIns")
+      .withIndex("by_worker", (q) => q.eq("workerId", args.workerId))
+      .collect();
+
+    const todayCheckIn = workerCheckIns.find(
+      (c) => c.checkInTime >= startOfDay
+    );
+
+    const isClockedIn = Boolean(todayCheckIn && !todayCheckIn.checkOutTime);
+    const isCompleted = Boolean(todayCheckIn && todayCheckIn.checkOutTime);
+
+    return {
+      isClockedIn,
+      isCompleted,
+      checkIn: todayCheckIn || null,
+    };
+  },
+});
+
+export const clockInWorker = mutation({
+  args: {
+    workerId: v.id("workers"),
+    projectId: v.optional(v.id("projects")),
+    type: v.optional(v.union(v.literal("Self"), v.literal("Proxy"))),
+  },
+  handler: async (ctx, args) => {
+    let projectId = args.projectId;
+
+    if (!projectId) {
+      const assignment = await ctx.db
+        .query("projectAssignments")
+        .withIndex("by_worker", (q) => q.eq("workerId", args.workerId))
+        .first();
+
+      if (assignment) {
+        projectId = assignment.projectId;
+      } else {
+        throw new Error("No active project site assigned to this worker. Please assign a project in the Admin Panel.");
+      }
+    }
+
+    const startOfDay = getStartOfDayIST();
+
+    const existingCheckIns = await ctx.db
+      .query("checkIns")
+      .withIndex("by_worker", (q) => q.eq("workerId", args.workerId))
+      .collect();
+
+    const todayCheckIn = existingCheckIns.find(
+      (c) => c.checkInTime >= startOfDay
+    );
+
+    const type = args.type || "Self";
+    const status = type === "Proxy" ? "Pending Approval" : "Verified";
+
+    let checkInId;
+    if (todayCheckIn) {
+      if (!todayCheckIn.checkOutTime) {
+        return todayCheckIn._id;
+      }
+      // If worker previously clocked out today, UPDATE existing record instead of adding duplicate row!
+      checkInId = todayCheckIn._id;
+      await ctx.db.replace(todayCheckIn._id, {
+        projectId,
+        workerId: args.workerId,
+        checkInTime: Date.now(),
+        type,
+        status,
+      });
+    } else {
+      checkInId = await ctx.db.insert("checkIns", {
+        projectId,
+        workerId: args.workerId,
+        checkInTime: Date.now(),
+        type,
+        status,
+      });
+    }
+
+    if (type === "Proxy") {
+      const worker = await ctx.db.get(args.workerId);
+      const workerName = worker ? `${worker.firstName} ${worker.lastName}` : "Worker";
+      await ctx.db.insert("notifications", {
+        title: "Proxy Check-in Alert",
+        desc: `${workerName} was checked in via proxy. Supervisor approval required.`,
+        createdAt: Date.now(),
+        isRead: false,
+      });
+    }
+
+    return checkInId;
+  },
+});
+
+export const clockOutWorker = mutation({
+  args: {
+    workerId: v.id("workers"),
+    checkInId: v.optional(v.id("checkIns")),
+  },
+  handler: async (ctx, args) => {
+    let targetCheckInId = args.checkInId;
+
+    if (!targetCheckInId) {
+      const startOfDay = getStartOfDayIST();
+
+      const existingCheckIns = await ctx.db
+        .query("checkIns")
+        .withIndex("by_worker", (q) => q.eq("workerId", args.workerId))
+        .collect();
+
+      const activeCheckIn = existingCheckIns.find(
+        (c) => c.checkInTime >= startOfDay && !c.checkOutTime
+      );
+
+      if (!activeCheckIn) {
+        throw new Error("No active check-in found to clock out");
+      }
+      targetCheckInId = activeCheckIn._id;
+    }
+
+    await ctx.db.patch(targetCheckInId, {
+      checkOutTime: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+export const getMonthlyAttendance = query({
+  args: {
+    workerId: v.id("workers"),
+    year: v.number(),
+    month: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const daysInMonth = new Date(args.year, args.month, 0).getDate();
+    const startOfMonth = new Date(args.year, args.month - 1, 1).getTime();
+    const endOfMonth = new Date(args.year, args.month, 0, 23, 59, 59).getTime();
+
+    const allCheckIns = await ctx.db
+      .query("checkIns")
+      .withIndex("by_worker", (q) => q.eq("workerId", args.workerId))
+      .collect();
+
+    const monthCheckIns = allCheckIns.filter(
+      (c) => c.checkInTime >= startOfMonth && c.checkInTime <= endOfMonth
+    );
+
+    const now = new Date();
+    const records = [];
+    let totalWorked = 0;
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateObj = new Date(args.year, args.month - 1, day);
+      const dayOfWeek = dateObj.getDay();
+
+      if (dateObj > now) {
+        records.push({ day, status: "none" });
+        continue;
+      }
+
+      const dayStart = new Date(args.year, args.month - 1, day).getTime();
+      const dayEnd = new Date(args.year, args.month - 1, day, 23, 59, 59).getTime();
+
+      const dayCheckIn = monthCheckIns.find(
+        (c) => c.checkInTime >= dayStart && c.checkInTime <= dayEnd
+      );
+
+      if (dayCheckIn) {
+        records.push({ day, status: "full" });
+        totalWorked += 1;
+      } else if (dayOfWeek === 0) {
+        records.push({ day, status: "leave" });
+      } else {
+        records.push({ day, status: "leave" });
+      }
+    }
+
+    return {
+      records,
+      totalWorked,
+    };
+  },
+});
+
+export const getCrewAttendance = query({
+  args: { foremanId: v.id("workers") },
+  handler: async (ctx, args) => {
+    const assignment = await ctx.db
+      .query("projectAssignments")
+      .withIndex("by_worker", (q) => q.eq("workerId", args.foremanId))
+      .first();
+
+    const projectId = assignment?.projectId;
+    if (!projectId) return [];
+
+    const projectAssignments = await ctx.db
+      .query("projectAssignments")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .collect();
+
+    const startOfDay = getStartOfDayIST();
+
+    const todayCheckIns = await ctx.db
+      .query("checkIns")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .collect();
+
+    const crew = await Promise.all(
+      projectAssignments.map(async (pa) => {
+        const worker = await ctx.db.get(pa.workerId);
+        if (!worker) return null;
+
+        const checkIn = todayCheckIns.find(
+          (c) => c.workerId === worker._id && c.checkInTime >= startOfDay
+        );
+
+        let status = "Not Marked";
+        if (checkIn) {
+          if (checkIn.checkOutTime) {
+            status = "Clocked Out";
+          } else if (checkIn.status === "Pending Approval") {
+            status = "Pending Approval";
+          } else {
+            status = "Clocked In";
+          }
+        }
+
+        return {
+          id: worker._id,
+          workerCode: worker.workerCode || "W-000",
+          name: `${worker.firstName} ${worker.lastName}`,
+          role: worker.role,
+          mobile: worker.mobile,
+          initials: getInitials(worker.firstName, worker.lastName),
+          status,
+          isPresent: Boolean(checkIn),
+          checkInId: checkIn?._id || null,
+          checkInTime: formatTimeIST(checkIn?.checkInTime),
+          type: checkIn?.type || null,
+        };
+      })
+    );
+
+    return crew.filter(Boolean);
+  },
+});
+
+export const proxyCheckIn = mutation({
+  args: {
+    foremanId: v.id("workers"),
+    workerId: v.id("workers"),
+    projectId: v.optional(v.id("projects")),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    let projectId = args.projectId;
+
+    if (!projectId) {
+      const assignment = await ctx.db
+        .query("projectAssignments")
+        .withIndex("by_worker", (q) => q.eq("workerId", args.foremanId))
+        .first();
+      projectId = assignment?.projectId;
+
+      if (!projectId) {
+        throw new Error("Foreman has no assigned project site.");
+      }
+    }
+
+    const worker = await ctx.db.get(args.workerId);
+    if (!worker) throw new Error("Worker not found");
+
+    const startOfDay = getStartOfDayIST();
+
+    const existingCheckIns = await ctx.db
+      .query("checkIns")
+      .withIndex("by_worker", (q) => q.eq("workerId", args.workerId))
+      .collect();
+
+    const todayCheckIn = existingCheckIns.find(
+      (c) => c.checkInTime >= startOfDay
+    );
+
+    let checkInId;
+    if (todayCheckIn) {
+      checkInId = todayCheckIn._id;
+      await ctx.db.replace(todayCheckIn._id, {
+        projectId,
+        workerId: args.workerId,
+        checkInTime: Date.now(),
+        type: "Proxy",
+        status: "Pending Approval",
+      });
+    } else {
+      checkInId = await ctx.db.insert("checkIns", {
+        projectId,
+        workerId: args.workerId,
+        checkInTime: Date.now(),
+        type: "Proxy",
+        status: "Pending Approval",
+      });
+    }
+
+    const foreman = await ctx.db.get(args.foremanId);
+    const foremanName = foreman ? `${foreman.firstName} ${foreman.lastName}` : "Foreman";
+
+    await ctx.db.insert("notifications", {
+      title: "Proxy Check-in Alert",
+      desc: `${worker.firstName} ${worker.lastName} was checked in via proxy by ${foremanName}.${args.reason ? ` Reason: ${args.reason}` : ""}`,
+      createdAt: Date.now(),
+      isRead: false,
+    });
+
+    return checkInId;
+  },
+});
+
+// ── Admin Dashboard: All Today's Check-Ins ──────────────────────
+
+export const getAllToday = query({
+  args: {},
+  handler: async (ctx) => {
+    const startOfDay = getStartOfDayIST();
+
+    const allCheckIns = await ctx.db.query("checkIns").collect();
+    const todayCheckIns = allCheckIns.filter(
+      (c) => c.checkInTime >= startOfDay
+    );
+
+    // Deduplicate by workerId to keep only the latest check-in per worker today
+    const latestByWorker = new Map();
+    for (const checkIn of todayCheckIns) {
+      const existing = latestByWorker.get(checkIn.workerId);
+      if (!existing || checkIn.checkInTime > existing.checkInTime) {
+        latestByWorker.set(checkIn.workerId, checkIn);
+      }
+    }
+
+    const deduplicatedTodayCheckIns = Array.from(latestByWorker.values());
+
+    const enriched = await Promise.all(
+      deduplicatedTodayCheckIns.map(async (checkIn) => {
+        const worker = await ctx.db.get(checkIn.workerId);
+        const project = await ctx.db.get(checkIn.projectId);
+        if (!worker) return null;
+
+        const checkInTimeStr = formatTimeIST(checkIn.checkInTime);
+
+        let checkOutTimeStr = null;
+        let hoursWorked = null;
+        if (checkIn.checkOutTime) {
+          checkOutTimeStr = formatTimeIST(checkIn.checkOutTime);
+          hoursWorked = ((checkIn.checkOutTime - checkIn.checkInTime) / (1000 * 60 * 60)).toFixed(1);
+        }
+
+        // Determine if late (after 08:30 AM IST)
+        const lateThreshold = startOfDay + (8 * 60 + 30) * 60 * 1000;
+        const isLate = checkIn.checkInTime > lateThreshold;
+
+        return {
+          _id: checkIn._id,
+          workerId: checkIn.workerId,
+          workerName: `${worker.firstName} ${worker.lastName}`,
+          workerCode: worker.workerCode || "W-000",
+          role: worker.role,
+          initials: getInitials(worker.firstName, worker.lastName),
+          projectName: project?.name || "Unknown",
+          checkInTime: checkIn.checkInTime,
+          checkInTimeStr,
+          checkOutTime: checkIn.checkOutTime || null,
+          checkOutTimeStr,
+          hoursWorked,
+          type: checkIn.type,
+          status: checkIn.status,
+          isLate,
+        };
+      })
+    );
+
+    return enriched.filter(Boolean);
+  },
+});
+
+// ── Admin Query: Attendance Records by Worker ──────────────────
+
+export const getByWorker = query({
+  args: { workerId: v.id("workers") },
+  handler: async (ctx, args) => {
+    await requireAdminAuth(ctx);
+    const records = await ctx.db
+      .query("checkIns")
+      .withIndex("by_worker", (q) => q.eq("workerId", args.workerId))
+      .collect();
+
+    const enriched = await Promise.all(
+      records.map(async (c) => {
+        const project = await ctx.db.get(c.projectId);
+        const checkInTimeStr = formatTimeIST(c.checkInTime);
+        const checkOutTimeStr = c.checkOutTime ? formatTimeIST(c.checkOutTime) : null;
+        const dateStr = new Date(c.checkInTime).toLocaleDateString("en-US", {
+          weekday: "short",
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+        let hoursWorked = null;
+        if (c.checkOutTime) {
+          hoursWorked = ((c.checkOutTime - c.checkInTime) / (1000 * 60 * 60)).toFixed(1);
+        }
+        return {
+          _id: c._id,
+          workerId: c.workerId,
+          projectId: c.projectId,
+          projectName: project?.name || "Unassigned Site",
+          projectLocation: project?.location || "",
+          checkInTime: c.checkInTime,
+          checkOutTime: c.checkOutTime || null,
+          checkInTimeStr,
+          checkOutTimeStr,
+          dateStr,
+          hoursWorked,
+          type: c.type,
+          status: c.status,
+        };
+      })
+    );
+
+    return enriched.sort((a, b) => b.checkInTime - a.checkInTime);
+  },
+});
+
+export const adminOverrideAttendance = mutation({
+  args: {
+    checkInId: v.optional(v.id("checkIns")),
+    workerId: v.id("workers"),
+    projectId: v.id("projects"),
+    checkInTime: v.number(),
+    checkOutTime: v.optional(v.number()),
+    type: v.optional(
+      v.union(
+        v.literal("Self"),
+        v.literal("Proxy"),
+        v.literal("Manual"),
+        v.literal("Manual Override")
+      )
+    ),
+    status: v.optional(
+      v.union(
+        v.literal("Verified"),
+        v.literal("Pending Approval"),
+        v.literal("On Site"),
+        v.literal("Completed")
+      )
+    ),
+  },
+  handler: async (ctx, args) => {
+    await requireAdminAuth(ctx);
+    const checkInStatus = args.status || "Verified";
+    const checkInType = args.type || "Manual Override";
+
+    if (args.checkInId) {
+      await ctx.db.patch(args.checkInId, {
+        projectId: args.projectId,
+        checkInTime: args.checkInTime,
+        checkOutTime: args.checkOutTime !== undefined ? args.checkOutTime : undefined,
+        type: checkInType,
+        status: checkInStatus,
+      });
+      return args.checkInId;
+    } else {
+      return await ctx.db.insert("checkIns", {
+        projectId: args.projectId,
+        workerId: args.workerId,
+        checkInTime: args.checkInTime,
+        checkOutTime: args.checkOutTime || undefined,
+        type: checkInType,
+        status: checkInStatus,
+      });
+    }
+  },
+});
+
+export const adminDeleteAttendance = mutation({
+  args: { checkInId: v.id("checkIns") },
+  handler: async (ctx, args) => {
+    await requireAdminAuth(ctx);
+    await ctx.db.delete(args.checkInId);
+    return { success: true };
+  },
+});
+

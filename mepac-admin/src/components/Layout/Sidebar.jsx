@@ -1,7 +1,11 @@
 import React from 'react';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { LayoutDashboard, Building2, Users, CalendarDays, FileText, PencilRuler, Settings } from 'lucide-react';
 
 export default function Sidebar({ activeView, setActiveView }) {
+    const settings = useQuery(api.settings.get);
+
     const navItems = [
         { id: 'view-dashboard', icon: LayoutDashboard, label: 'Dashboard' },
         { id: 'view-projects', icon: Building2, label: 'Projects' },
@@ -14,9 +18,13 @@ export default function Sidebar({ activeView, setActiveView }) {
     return (
         <aside className="sidebar">
             <div className="sidebar-header">
-                <img src="/images/logo.png" alt="MEPac Logo" className="logo-icon" />
+                {settings?.logoUrl ? (
+                    <img src={settings.logoUrl} alt="Company Logo" className="logo-icon" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
+                ) : (
+                    <img src="/images/logo.png" alt="MEPac Logo" className="logo-icon" />
+                )}
                 <div className="logo-text">
-                    <h1>MEPac</h1>
+                    <h1>{settings?.companyName || 'MEPac'}</h1>
                     <span>Admin Console</span>
                 </div>
             </div>

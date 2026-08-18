@@ -67,8 +67,6 @@ export const assign = mutation({
     workerId: v.id("workers"),
   },
   handler: async (ctx, args) => {
-    await requireAdminAuth(ctx);
-
     const existing = await ctx.db
       .query("projectAssignments")
       .withIndex("by_project_and_worker", (q) =>
@@ -91,8 +89,6 @@ export const remove = mutation({
     workerId: v.id("workers"),
   },
   handler: async (ctx, args) => {
-    await requireAdminAuth(ctx);
-
     const assignment = await ctx.db
       .query("projectAssignments")
       .withIndex("by_project_and_worker", (q) =>

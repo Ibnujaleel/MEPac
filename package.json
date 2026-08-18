@@ -1,0 +1,23 @@
+{
+  "name": "mepac-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MEPac — Admin Panel and Field PWA with Central Convex Backend",
+  "workspaces": [
+    "mepac-admin",
+    "mepac-pwa"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:admin\" \"npm run dev:pwa\"",
+    "dev:admin": "npm run dev --prefix mepac-admin",
+    "dev:pwa": "npm run dev --prefix mepac-pwa",
+    "dev:convex": "npx convex dev --prefix mepac-admin",
+    "build:admin": "npm run build --prefix mepac-admin",
+    "build:pwa": "npm run build --prefix mepac-pwa",
+    "build": "npm run build:admin && npm run build:pwa",
+    "lint": "npm run lint --prefix mepac-admin && npm run lint --prefix mepac-pwa"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

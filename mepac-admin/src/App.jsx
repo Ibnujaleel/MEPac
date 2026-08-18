@@ -92,6 +92,7 @@ export default function App() {
   const projects = useQuery(api.projects.list) || [];
   const workforce = useQuery(api.workers.list) || [];
   const notifications = useQuery(api.notifications.list) || [];
+  const todayCheckIns = useQuery(api.checkIns.getAllToday) || [];
 
   // Convex Mutations
   const toggleComplete = useMutation(api.projects.toggleComplete);
@@ -152,11 +153,11 @@ export default function App() {
         <Topbar activeView={activeView} selectedProject={selectedProject} activePanel={activePanel} togglePanel={togglePanel} notifications={notifications} />
 
         <div className="views-container">
-          {activeView === 'view-dashboard' && <Dashboard setActiveView={setActiveView} projects={projects} workforce={workforce} />}
+          {activeView === 'view-dashboard' && <Dashboard setActiveView={setActiveView} projects={projects} workforce={workforce} checkIns={todayCheckIns} />}
           {activeView === 'view-projects' && <ProjectsHub openModal={openModal} projects={projects} setActiveView={setActiveView} setSelectedProject={(project) => setSelectedProjectId(project ? project._id : null)} />}
           {activeView === 'view-project-details' && <ProjectDetail projectId={selectedProjectId} project={selectedProject} workforce={workforce} setActiveView={setActiveView} openModal={openModal} onAssignWorker={handleAddWorkerToProject} onRemoveWorker={handleRemoveWorkerFromProject} />}
-          {activeView === 'view-workforce' && <Workforce openModal={openModal} workforce={workforce} />}
-          {activeView === 'view-attendance' && <AttendanceLog setActiveView={setActiveView} projects={projects} />}
+          {activeView === 'view-workforce' && <Workforce openModal={openModal} workforce={workforce} projects={projects} />}
+          {activeView === 'view-attendance' && <AttendanceLog setActiveView={setActiveView} projects={projects} checkIns={todayCheckIns} workforce={workforce} />}
           {activeView === 'view-rfis' && <RFIs openModal={openModal} />}
           {activeView === 'view-drawings' && <Drawings openModal={openModal} projects={projects} />}
           {activeView === 'view-settings' && <Settings />}

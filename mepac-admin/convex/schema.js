@@ -16,9 +16,9 @@ export default defineSchema({
       v.literal("Technician")
     ),
     mobile: v.string(), // Used only for workerLogin lookup; never returned to frontend
-    adminPin: v.string(), // Set by admin; shown in admin panel for reset reference
-    pin: v.string(),     // Worker's own PIN; never returned to frontend
-    pinIsDefault: v.boolean(), // true = worker has not yet changed their PIN
+    adminPin: v.optional(v.string()), // Set by admin; shown in admin panel for reset reference
+    pin: v.optional(v.string()),     // Worker's own PIN; never returned to frontend
+    pinIsDefault: v.optional(v.boolean()), // true = worker has not yet changed their PIN
     isActive: v.boolean(),
   }),
 
@@ -48,8 +48,18 @@ export default defineSchema({
     workerId: v.id("workers"),
     checkInTime: v.number(),
     checkOutTime: v.optional(v.number()),
-    type: v.union(v.literal("Self"), v.literal("Proxy")),
-    status: v.union(v.literal("Verified"), v.literal("Pending Approval")),
+    type: v.union(
+      v.literal("Self"),
+      v.literal("Proxy"),
+      v.literal("Manual"),
+      v.literal("Manual Override")
+    ),
+    status: v.union(
+      v.literal("Verified"),
+      v.literal("Pending Approval"),
+      v.literal("On Site"),
+      v.literal("Completed")
+    ),
   })
     .index("by_project", ["projectId"])
     .index("by_worker", ["workerId"])
@@ -121,4 +131,38 @@ export default defineSchema({
     email: v.string(),
     invitedAt: v.number(),
   }).index("by_email", ["email"]),
+
+  // ── Requests for Information & Disputes ───────────────────────
+  rfis: defineTable({
+    type: v.union(v.literal("rfi"), v.literal("dispute")),
+    projectId: v.optional(v.id("projects")),
+    projectName: v.string(),
+    workerId: v.optional(v.id("workers")),
+    workerName: v.optional(v.string()),
+    workerRole: v.optional(v.string()),
+    createdByWorkerId: v.optional(v.id("workers")),
+    createdByName: v.string(),
+    createdByRole: v.string(),
+    title: v.string(),
+    details: v.string(),
+    status: v.union(
+      v.literal("OPEN"),
+      v.literal("IN PROGRESS"),
+      v.literal("FLAGGED FOR ADMIN REVIEW"),
+      v.literal("RESOLVED")
+    ),
+    priority: v.union(
+      v.literal("High"),
+      v.literal("Medium"),
+      v.literal("Low")
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    rfiCode: v.string(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_worker", ["workerId"])
+    .index("by_type", ["type"])
+    .index("by_created", ["createdAt"]),
 });
+

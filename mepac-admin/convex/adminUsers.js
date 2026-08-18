@@ -64,14 +64,75 @@ export const listAdmins = query({
  * Public query: check if an email has been invited and has no account yet.
  * Used by the LoginPage to show the "Set your password" form.
  */
+export const checkEmailStatus = query({
+  args: { email: v.string() },
+  handler: async (ctx, { email }) => {
+    const cleanEmail = email.toLowerCase().trim();
+
+    const users = await ctx.db.query("users").collect();
+    const existingUser = users.find(
+      (u) => u.email && u.email.toLowerCase() === cleanEmail
+    );
+
+    if (existingUser) {
+      return { status: "has_account" };
+    }
+
+    const invite = await ctx.db
+      .query("invitedAdmins")
+      .withIndex("by_email", (q) => q.eq("email", cleanEmail))
+      .first();
+
+    if (invite) {
+      return { status: "invited" };
+    }
+
+    if (users.length === 0) {
+      return { status: "invited" };
+    }
+
+    return { status: "not_found" };
+  },
+});
+
 export const checkIsInvited = query({
   args: { email: v.string() },
   handler: async (ctx, { email }) => {
+    const cleanEmail = email.toLowerCase().trim();
+
+    const users = await ctx.db.query("users").collect();
+    const hasAccount = users.some(
+      (u) => u.email && u.email.toLowerCase() === cleanEmail
+    );
+    if (hasAccount) return false;
+
+    if (users.length === 0) {
+      return true;
+    }
+
     const invite = await ctx.db
+      .query("invitedAdmins")
+      .withIndex("by_email", (q) => q.eq("email", cleanEmail))
+      .first();
+    return !!invite;
+  },
+});
+
+export const seedInitialAdmin = mutation({
+  args: { email: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const email = (args.email || "admin@riverrtech.com").toLowerCase().trim();
+    const existing = await ctx.db
       .query("invitedAdmins")
       .withIndex("by_email", (q) => q.eq("email", email))
       .first();
-    return !!invite;
+    if (!existing) {
+      await ctx.db.insert("invitedAdmins", {
+        email,
+        invitedAt: Date.now(),
+      });
+    }
+    return { success: true, email };
   },
 });
 

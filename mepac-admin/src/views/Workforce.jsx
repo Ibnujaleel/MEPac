@@ -1,18 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, MoreVertical, Key, UserX, UserCheck, Trash2, X, AlertTriangle, Copy, Check, ChevronDown, ChevronRight, RefreshCcw } from 'lucide-react';
+import { Search, MoreVertical, Key, UserX, UserCheck, Trash2, X, AlertTriangle, Copy, Check, ChevronDown, ChevronRight, RefreshCcw, Edit2, User } from 'lucide-react';
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import EditWorkerModal from '../components/modals/EditWorkerModal';
+import WorkerProfileModal from '../components/modals/WorkerProfileModal';
 
-export default function Workforce({ openModal, workforce = [] }) {
+export default function Workforce({ openModal, workforce = [], projects = [] }) {
     const [activeTab, setActiveTab] = useState('Supervisor');
     const [searchQuery, setSearchQuery] = useState('');
     const [openMenuWorkerId, setOpenMenuWorkerId] = useState(null);
     const [workerToDelete, setWorkerToDelete] = useState(null);
     const [workerToDeactivate, setWorkerToDeactivate] = useState(null);
     const [workerForPin, setWorkerForPin] = useState(null);
+    const [workerToEdit, setWorkerToEdit] = useState(null);
+    const [workerForProfile, setWorkerForProfile] = useState(null);
     const [copiedPin, setCopiedPin] = useState(false);
     const [inactiveExpanded, setInactiveExpanded] = useState(true);
+
 
     // Convex Mutations
     const toggleStatus = useMutation(api.workers.toggleStatus);
@@ -106,7 +111,13 @@ export default function Workforce({ openModal, workforce = [] }) {
 
     const renderWorkerRow = (w) => {
         return (
-            <tr key={w._id}>
+            <tr 
+                key={w._id}
+                onClick={() => setWorkerForProfile(w)}
+                style={{ cursor: 'pointer' }}
+                className="worker-table-row"
+                title="Click to view worker profile & attendance history"
+            >
                 <td style={{ width: '130px' }}>
                     <span style={{ 
                         fontFamily: 'monospace', 
@@ -125,7 +136,7 @@ export default function Workforce({ openModal, workforce = [] }) {
                     <div className="worker-cell" style={{ opacity: w.isActive ? 1 : 0.8 }}>
                         <div className="avatar-small blue" style={{ filter: w.isActive ? 'none' : 'grayscale(60%)' }}>{w.initials}</div>
                         <div>
-                            <div style={{ fontWeight: 500, color: w.isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{w.name}</div>
+                            <div style={{ fontWeight: 600, color: w.isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{w.name}</div>
                         </div>
                     </div>
                 </td>
@@ -153,6 +164,7 @@ export default function Workforce({ openModal, workforce = [] }) {
                             e.stopPropagation();
                             setOpenMenuWorkerId(openMenuWorkerId === w._id ? null : w._id);
                         }}
+                        title="Actions"
                     >
                         <MoreVertical size={18} />
                     </button>
@@ -165,7 +177,7 @@ export default function Workforce({ openModal, workforce = [] }) {
                                 position: 'absolute',
                                 top: 'calc(100% + 4px)',
                                 right: '20px',
-                                width: '210px',
+                                width: '230px',
                                 backgroundColor: 'var(--bg-surface)',
                                 border: '1px solid var(--border-subtle)',
                                 borderRadius: 'var(--radius-md)',
@@ -176,6 +188,34 @@ export default function Workforce({ openModal, workforce = [] }) {
                             }}
                         >
                             <div style={{ padding: '6px' }}>
+                                <button 
+                                    className="btn text-btn" 
+                                    style={{ width: '100%', padding: '10px 14px', justifyContent: 'flex-start', gap: '10px', fontSize: '14px', fontWeight: 600, color: 'var(--accent-blue)' }}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenMenuWorkerId(null);
+                                        setWorkerForProfile(w);
+                                    }}
+                                >
+                                    <User size={16} color="var(--accent-blue)" />
+                                    View Profile & Attendance
+                                </button>
+
+                                <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px 0' }}></div>
+
+                                <button 
+                                    className="btn text-btn" 
+                                    style={{ width: '100%', padding: '10px 14px', justifyContent: 'flex-start', gap: '10px', fontSize: '14px', fontWeight: 500 }}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenMenuWorkerId(null);
+                                        setWorkerToEdit(w);
+                                    }}
+                                >
+                                    <Edit2 size={16} color="var(--text-secondary)" />
+                                    Edit Worker Details
+                                </button>
+
                                 <button 
                                     className="btn text-btn" 
                                     style={{ width: '100%', padding: '10px 14px', justifyContent: 'flex-start', gap: '10px', fontSize: '14px', fontWeight: 500 }}
@@ -204,7 +244,7 @@ export default function Workforce({ openModal, workforce = [] }) {
                                     }}
                                 >
                                     <Key size={16} color="var(--accent-blue)" />
-                                    Show PIN
+                                    Show Login PIN
                                 </button>
 
                                 <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '6px 0' }}></div>
@@ -568,6 +608,36 @@ export default function Workforce({ openModal, workforce = [] }) {
                         </div>
                     </div>
                 </div>,
+                document.body
+            )}
+
+            {/* Edit Worker Profile Modal */}
+            {workerToEdit && createPortal(
+                <div className="modal-overlay active" style={{ zIndex: 3000 }} onClick={() => setWorkerToEdit(null)}>
+                    <EditWorkerModal
+                        worker={workerToEdit}
+                        onClose={() => setWorkerToEdit(null)}
+                    />
+                </div>,
+                document.body
+            )}
+
+            {/* Worker Profile & Attendance Modal */}
+            {workerForProfile && createPortal(
+                <WorkerProfileModal
+                    worker={workerForProfile}
+                    onClose={() => setWorkerForProfile(null)}
+                    onEditWorker={(w) => {
+                        setWorkerForProfile(null);
+                        setWorkerToEdit(w);
+                    }}
+                    onShowPin={(w) => {
+                        setWorkerForProfile(null);
+                        setWorkerForPin(w);
+                    }}
+                    projects={projects}
+                    workforce={workforce}
+                />,
                 document.body
             )}
         </section>

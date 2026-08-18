@@ -17,6 +17,7 @@ import {
     CheckSquare
 } from 'lucide-react';
 import ManageUsers from './ManageUsers';
+import GeofencePreviewMap from '../components/GeofencePreviewMap';
 
 export default function Settings() {
     const [activeTab, setActiveTab] = useState('company');
@@ -634,10 +635,8 @@ export default function Settings() {
                                     </div>
                                 </div>
 
-                                <div className="map-preview-box">
-                                    <div className="map-grid-overlay"></div>
-                                    <Map size={48} style={{ color: 'var(--text-muted)', marginBottom: '8px' }} />
-                                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Map Preview Unavailable</span>
+                                <div style={{ flex: 1, minWidth: '240px' }}>
+                                    <GeofencePreviewMap radius={geofence.radius} enforceGps={geofence.enforceGps} />
                                 </div>
                             </div>
                         </div>

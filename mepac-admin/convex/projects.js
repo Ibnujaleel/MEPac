@@ -8,6 +8,15 @@ async function requireAdminAuth(ctx) {
   return userId;
 }
 
+function getStartOfDayIST(timestamp = Date.now()) {
+  const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+  const istDate = new Date(timestamp + IST_OFFSET_MS);
+  const year = istDate.getUTCFullYear();
+  const month = istDate.getUTCMonth();
+  const date = istDate.getUTCDate();
+  return Date.UTC(year, month, date) - IST_OFFSET_MS;
+}
+
 // ── Queries ─────────────────────────────────────────────────────
 
 export const list = query({
@@ -22,8 +31,7 @@ export const list = query({
           .withIndex("by_project", (q) => q.eq("projectId", project._id))
           .collect();
 
-        const now = new Date();
-        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const startOfDay = getStartOfDayIST();
         const checkIns = await ctx.db
           .query("checkIns")
           .withIndex("by_project", (q) => q.eq("projectId", project._id))
@@ -64,8 +72,7 @@ export const get = query({
       .withIndex("by_project", (q) => q.eq("projectId", project._id))
       .collect();
 
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfDay = getStartOfDayIST();
     const checkIns = await ctx.db
       .query("checkIns")
       .withIndex("by_project", (q) => q.eq("projectId", project._id))
@@ -138,3 +145,135 @@ export const generateUploadUrl = mutation({
     return await ctx.storage.generateUploadUrl();
   },
 });
+
+// ── PWA Job & Project Queries ───────────────────────────────────
+
+export const getActiveJobForWorker = query({
+  args: { workerId: v.id("workers") },
+  handler: async (ctx, args) => {
+    const assignment = await ctx.db
+      .query("projectAssignments")
+      .withIndex("by_worker", (q) => q.eq("workerId", args.workerId))
+      .first();
+
+    if (!assignment) return null;
+
+    const project = await ctx.db.get(assignment.projectId);
+    if (!project || project.isCompleted) return null;
+
+    let imageUrl = null;
+    if (project.imageStorageId) {
+      imageUrl = await ctx.storage.getUrl(project.imageStorageId);
+    }
+
+    const startOfDay = getStartOfDayIST();
+
+    const checkIns = await ctx.db
+      .query("checkIns")
+      .withIndex("by_project", (q) => q.eq("projectId", project._id))
+      .collect();
+
+    const myTodayCheckIn = checkIns.find(
+      (c) => c.workerId === args.workerId && c.checkInTime >= startOfDay
+    );
+
+    const isClockedIn = Boolean(myTodayCheckIn && !myTodayCheckIn.checkOutTime);
+    const isCompletedShift = Boolean(myTodayCheckIn && myTodayCheckIn.checkOutTime);
+
+    const sysSettings = await ctx.db.query("settings").first();
+
+    return {
+      id: project._id,
+      name: project.name,
+      client: project.client,
+      location: project.location,
+      latitude: project.latitude,
+      longitude: project.longitude,
+      imageUrl:
+        imageUrl ||
+        "https://images.unsplash.com/photo-1541888081636-67a550d5145b?auto=format&fit=crop&q=80&w=800",
+      dateStr: new Date().toLocaleDateString("en-US", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+      }),
+      timeStr: sysSettings
+        ? `${sysSettings.shiftStart} - ${sysSettings.shiftEnd}`
+        : "08:00 AM - 05:00 PM",
+      status: isCompletedShift
+        ? "Shift Completed"
+        : isClockedIn
+        ? "Clocked In"
+        : "Not Clocked In",
+      assignedTo: args.workerId,
+      isClockedIn,
+      checkInId: myTodayCheckIn?._id || null,
+      enforceGps: sysSettings?.enforceGps ?? true,
+      geofenceRadius: sysSettings?.geofenceRadius ?? 100,
+      allowSelfClockIn: sysSettings?.allowSelfClockIn ?? true,
+    };
+  },
+});
+
+export const getSupervisorProjects = query({
+  args: { workerId: v.optional(v.id("workers")) },
+  handler: async (ctx, args) => {
+    const projects = await ctx.db.query("projects").collect();
+
+    let assignedProjectIds = new Set();
+    if (args.workerId) {
+      const myAssignments = await ctx.db
+        .query("projectAssignments")
+        .withIndex("by_worker", (q) => q.eq("workerId", args.workerId))
+        .collect();
+      assignedProjectIds = new Set(myAssignments.map((a) => a.projectId));
+    }
+
+    const enriched = await Promise.all(
+      projects.map(async (project) => {
+        const assignments = await ctx.db
+          .query("projectAssignments")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .collect();
+
+        const blueprints = await ctx.db
+          .query("blueprints")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .collect();
+
+        let imageUrl = null;
+        if (project.imageStorageId) {
+          imageUrl = await ctx.storage.getUrl(project.imageStorageId);
+        }
+
+        const startOfDay = getStartOfDayIST();
+
+        const checkIns = await ctx.db
+          .query("checkIns")
+          .withIndex("by_project", (q) => q.eq("projectId", project._id))
+          .collect();
+        const todayCheckIns = checkIns.filter((c) => c.checkInTime >= startOfDay);
+
+        return {
+          id: project._id,
+          name: project.name,
+          client: project.client,
+          location: project.location,
+          latitude: project.latitude,
+          longitude: project.longitude,
+          imageUrl:
+            imageUrl ||
+            "https://images.unsplash.com/photo-1541888081636-67a550d5145b?auto=format&fit=crop&q=80&w=800",
+          totalAssigned: assignments.length,
+          presentCount: todayCheckIns.length,
+          blueprintsCount: blueprints.length,
+          isCompleted: project.isCompleted,
+          isAssignedToMe: args.workerId ? assignedProjectIds.has(project._id) : true,
+        };
+      })
+    );
+
+    return enriched;
+  },
+});
+

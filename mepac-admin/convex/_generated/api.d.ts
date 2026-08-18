@@ -16,6 +16,7 @@ import type * as checkIns from "../checkIns.js";
 import type * as http from "../http.js";
 import type * as notifications from "../notifications.js";
 import type * as projects from "../projects.js";
+import type * as rfis from "../rfis.js";
 import type * as settings from "../settings.js";
 import type * as workers from "../workers.js";
 
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   notifications: typeof notifications;
   projects: typeof projects;
+  rfis: typeof rfis;
   settings: typeof settings;
   workers: typeof workers;
 }>;

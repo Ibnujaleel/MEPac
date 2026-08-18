@@ -199,3 +199,118 @@ export const resetPin = mutation({
     });
   },
 });
+
+// ── PWA Auth & Profile Functions ───────────────────────────────
+
+export const loginWithPin = mutation({
+  args: {
+    mobile: v.string(),
+    pin: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const cleanMobile = args.mobile.replace(/\D/g, "");
+    const allWorkers = await ctx.db.query("workers").collect();
+    const worker = allWorkers.find(
+      (w) => w.mobile.replace(/\D/g, "") === cleanMobile
+    );
+
+    if (!worker) {
+      throw new Error("Invalid mobile number or PIN");
+    }
+
+    const currentPin = worker.pin || worker.adminPin || "123456";
+    const matchesPin =
+      args.pin === worker.pin ||
+      args.pin === worker.adminPin ||
+      (args.pin === "123456" && (!worker.pin || worker.pinIsDefault));
+
+    if (!matchesPin && currentPin !== args.pin) {
+      throw new Error("Invalid mobile number or PIN");
+    }
+
+    if (worker.isActive === false) {
+      throw new Error("Your account has been deactivated. Please contact admin.");
+    }
+
+    const roleLower = worker.role.toLowerCase();
+    const department =
+      worker.role === "Supervisor"
+        ? "Administration"
+        : worker.role === "Foreman"
+        ? "Operations"
+        : "HVAC";
+
+    return {
+      user: {
+        id: worker._id,
+        name: `${worker.firstName} ${worker.lastName}`,
+        firstName: worker.firstName,
+        lastName: worker.lastName,
+        mobile: worker.mobile,
+        role: roleLower,
+        workerCode: worker.workerCode || "W-000",
+        department,
+        avatar: null,
+      },
+      role: roleLower,
+    };
+  },
+});
+
+export const changePin = mutation({
+  args: {
+    workerId: v.id("workers"),
+    oldPin: v.string(),
+    newPin: v.string(),
+  },
+  handler: async (ctx, args) => {
+    if (!/^\d{6}$/.test(args.newPin)) {
+      throw new Error("New PIN must be exactly 6 digits");
+    }
+
+    const worker = await ctx.db.get(args.workerId);
+    if (!worker) throw new Error("Worker not found");
+
+    const currentPin = worker.pin || worker.adminPin || "123456";
+    const matchesOld =
+      currentPin === args.oldPin ||
+      worker.adminPin === args.oldPin ||
+      (args.oldPin === "123456" && (!worker.pin || worker.pinIsDefault));
+
+    if (!matchesOld) {
+      throw new Error("Current PIN is incorrect");
+    }
+
+    await ctx.db.patch(args.workerId, {
+      pin: args.newPin,
+      pinIsDefault: false,
+    });
+    return { success: true, message: "PIN updated successfully" };
+  },
+});
+
+export const getProfile = query({
+  args: { workerId: v.id("workers") },
+  handler: async (ctx, args) => {
+    const worker = await ctx.db.get(args.workerId);
+    if (!worker) return null;
+
+    const assignment = await ctx.db
+      .query("projectAssignments")
+      .withIndex("by_worker", (q) => q.eq("workerId", args.workerId))
+      .first();
+
+    let project = null;
+    if (assignment) {
+      project = await ctx.db.get(assignment.projectId);
+    }
+
+    return {
+      ...worker,
+      name: `${worker.firstName} ${worker.lastName}`,
+      initials: getInitials(worker.firstName, worker.lastName),
+      assignedProject: project ? { id: project._id, name: project.name, location: project.location } : null,
+    };
+  },
+});
+

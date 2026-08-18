@@ -108,6 +108,26 @@ export default function EditProjectModal({ onClose, project }) {
                     </span>
                 </div>
                 <div className="form-group">
+                    <label>Google Maps Link or Coordinates <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional)</span></label>
+                    <input 
+                        type="text" 
+                        placeholder="Paste Google Maps URL or coordinates (e.g. 19.0760, 72.8777)..."
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            const match = val.match(/(-?\d+\.\d+),\s*(-?\d+\.\d+)/) || val.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+                            if (match) {
+                                setLatitude(parseFloat(match[1]));
+                                setLongitude(parseFloat(match[2]));
+                            }
+                        }}
+                    />
+                    {latitude != null && longitude != null && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--accent-blue)', marginTop: '4px', display: 'block', fontWeight: 600 }}>
+                            ✓ Coordinates Extracted: {latitude.toFixed(6)}, {longitude.toFixed(6)}
+                        </span>
+                    )}
+                </div>
+                <div className="form-group">
                     <label>Search Location <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional)</span></label>
                     <LocationPicker 
                         lat={latitude} 
