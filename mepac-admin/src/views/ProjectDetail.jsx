@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, MapPin, Users, Plus, Search, X, UserPlus, Trash2, FileText, Download, MoreVertical, Pencil, Upload, XCircle, RefreshCcw, Star, Eye } from 'lucide-react';
+import { ArrowLeft, MapPin, Users, Plus, Search, X, UserPlus, Trash2, FileText, Download, MoreVertical, Pencil, Upload, XCircle, RefreshCcw, Star, Eye, ShieldCheck, UserCheck, Clock, Calendar } from 'lucide-react';
 import { getProjectColor } from '../utils/colors';
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -18,6 +18,7 @@ export default function ProjectDetail({ projectId, project, setActiveView, openM
 
     const employees = useQuery(api.assignments.getByProject, projectId ? { projectId } : "skip") || [];
     const checkIns = useQuery(api.checkIns.getByProject, projectId ? { projectId } : "skip") || [];
+    const supervisorVisits = useQuery(api.checkIns.getProjectSupervisorVisits, projectId ? { projectId } : "skip") || {};
     const rawBlueprints = useQuery(api.blueprints.getByProject, projectId ? { projectId } : "skip") || [];
     // Sort: pinnedAt first, then by creation time (newest first)
     const blueprints = [...rawBlueprints].sort((a, b) => {
@@ -303,6 +304,86 @@ export default function ProjectDetail({ projectId, project, setActiveView, openM
                             <div className="metric-header">Completion</div>
                             <div className="metric-value">{project.percent}%</div>
                             <div className="metric-desc">Headcount fulfilled</div>
+                        </div>
+                    </div>
+
+                    {/* Supervisor Site Visit & Inspection Status */}
+                    <div className="panel" style={{ marginTop: '24px', borderLeft: supervisorVisits.isVisitedToday ? '4px solid #16a34a' : '4px solid #f59e0b' }}>
+                        <div className="panel-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <ShieldCheck size={20} color={supervisorVisits.isVisitedToday ? '#16a34a' : '#f59e0b'} />
+                                <div>
+                                    <h3 style={{ margin: 0 }}>Supervisor Site Visit Tracking</h3>
+                                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                        {supervisorVisits.isVisitedToday
+                                            ? `Site inspected today by ${supervisorVisits.lastVisitedBy} at ${supervisorVisits.lastVisitedTimeStr}`
+                                            : 'No supervisor has checked into this project site today.'}
+                                    </span>
+                                </div>
+                            </div>
+                            <span
+                                style={{
+                                    padding: '4px 12px',
+                                    borderRadius: '12px',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    backgroundColor: supervisorVisits.isVisitedToday ? '#dcfce7' : '#fef3c7',
+                                    color: supervisorVisits.isVisitedToday ? '#166534' : '#92400e',
+                                    border: `1px solid ${supervisorVisits.isVisitedToday ? '#bbf7d0' : '#fde68a'}`,
+                                }}
+                            >
+                                {supervisorVisits.isVisitedToday ? '🟢 Inspected Today' : '🟡 Awaiting Visit'}
+                            </span>
+                        </div>
+
+                        {/* Supervisor Visit Log Table */}
+                        <div style={{ marginTop: '12px' }}>
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>SUPERVISOR</th>
+                                        <th>DATE</th>
+                                        <th>TIME IN</th>
+                                        <th>TIME OUT</th>
+                                        <th>DURATION</th>
+                                        <th>STATUS</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(supervisorVisits.historyVisits || []).length > 0 ? (
+                                        supervisorVisits.historyVisits.map((visit) => (
+                                            <tr key={visit._id}>
+                                                <td>
+                                                    <div className="worker-cell">
+                                                        <div className="avatar-small blue" style={{ backgroundColor: '#1e40af' }}>
+                                                            {visit.initials}
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontWeight: 600 }}>{visit.supervisorName}</div>
+                                                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{visit.supervisorCode}</div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td style={{ fontSize: '12px', fontWeight: 500 }}>{visit.dateStr}</td>
+                                                <td style={{ fontSize: '12px' }}>{visit.checkInTimeStr}</td>
+                                                <td style={{ fontSize: '12px' }}>{visit.checkOutTimeStr || 'On Site'}</td>
+                                                <td style={{ fontSize: '12px' }}>{visit.durationHours ? `${visit.durationHours} hrs` : 'Active'}</td>
+                                                <td>
+                                                    <span className="status-pill solid-grey" style={{ backgroundColor: '#dcfce7', color: '#166534' }}>
+                                                        {visit.status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>
+                                                No supervisor site visits logged for this project yet.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 

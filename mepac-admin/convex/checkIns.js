@@ -710,6 +710,111 @@ export const adminOverrideAttendance = mutation({
   },
 });
 
+// ── Supervisor Site Visits Tracking ────────────────────────────────
+
+export const getProjectSupervisorVisits = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    const startOfDay = getStartOfDayIST();
+
+    const allCheckIns = await ctx.db
+      .query("checkIns")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
+    // Filter to only checkIns where the worker is a Supervisor
+    const supervisorCheckIns = await Promise.all(
+      allCheckIns.map(async (c) => {
+        const worker = await ctx.db.get(c.workerId);
+        if (!worker || worker.role !== "Supervisor") return null;
+
+        const checkInTimeStr = formatTimeIST(c.checkInTime);
+        const checkOutTimeStr = formatTimeIST(c.checkOutTime);
+        const dateStr = new Date(c.checkInTime).toLocaleDateString("en-US", {
+          timeZone: "Asia/Kolkata",
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+
+        let durationHours = null;
+        if (c.checkOutTime) {
+          durationHours = ((c.checkOutTime - c.checkInTime) / (1000 * 60 * 60)).toFixed(1);
+        }
+
+        return {
+          _id: c._id,
+          workerId: c.workerId,
+          supervisorName: `${worker.firstName} ${worker.lastName}`,
+          supervisorCode: worker.workerCode || "S-000",
+          initials: getInitials(worker.firstName, worker.lastName),
+          checkInTime: c.checkInTime,
+          checkOutTime: c.checkOutTime || null,
+          checkInTimeStr,
+          checkOutTimeStr,
+          dateStr,
+          durationHours,
+          status: c.status,
+          type: c.type,
+          isToday: c.checkInTime >= startOfDay,
+        };
+      })
+    );
+
+    const validVisits = supervisorCheckIns.filter(Boolean);
+    const todayVisits = validVisits.filter((v) => v.isToday);
+    const historyVisits = validVisits.sort((a, b) => b.checkInTime - a.checkInTime);
+
+    const isVisitedToday = todayVisits.length > 0;
+    const lastVisitedBy = isVisitedToday ? todayVisits[0].supervisorName : null;
+    const lastVisitedTimeStr = isVisitedToday ? todayVisits[0].checkInTimeStr : null;
+
+    return {
+      isVisitedToday,
+      lastVisitedBy,
+      lastVisitedTimeStr,
+      todayVisits,
+      historyVisits,
+      totalVisitsCount: validVisits.length,
+    };
+  },
+});
+
+export const getAllProjectsSupervisorVisits = query({
+  args: {},
+  handler: async (ctx) => {
+    const startOfDay = getStartOfDayIST();
+    const allCheckIns = await ctx.db.query("checkIns").collect();
+
+    const todaySupervisorCheckIns = [];
+    for (const c of allCheckIns) {
+      if (c.checkInTime >= startOfDay) {
+        const worker = await ctx.db.get(c.workerId);
+        if (worker && worker.role === "Supervisor") {
+          todaySupervisorCheckIns.push({
+            ...c,
+            supervisorName: `${worker.firstName} ${worker.lastName}`,
+            initials: getInitials(worker.firstName, worker.lastName),
+            checkInTimeStr: formatTimeIST(c.checkInTime),
+          });
+        }
+      }
+    }
+
+    // Group by projectId
+    const visitsByProject = {};
+    for (const visit of todaySupervisorCheckIns) {
+      const pId = visit.projectId;
+      if (!visitsByProject[pId]) {
+        visitsByProject[pId] = [];
+      }
+      visitsByProject[pId].push(visit);
+    }
+
+    return visitsByProject;
+  },
+});
+
 export const adminDeleteAttendance = mutation({
   args: { checkInId: v.id("checkIns") },
   handler: async (ctx, args) => {
@@ -718,4 +823,6 @@ export const adminDeleteAttendance = mutation({
     return { success: true };
   },
 });
+
+
 
