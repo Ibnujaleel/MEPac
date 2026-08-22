@@ -320,8 +320,15 @@ export default function SupervisorHome() {
 
   const activeSelectedSite = activeSites.find((s) => s.id === selectedSiteId) || activeSites[0] || currentJob;
   const primarySiteName = activeSelectedSite?.name || 'Project Site';
-  const isAtSite = Boolean(activeSelectedSite && activeSelectedSite.distance != null && activeSelectedSite.distance <= (activeSelectedSite.geofenceRadius || 100));
-  const canClockIn = isClockedIn || isAtSite || (activeSelectedSite?.enforceGps === false);
+  const isAtSite = Boolean(
+    activeSelectedSite && (
+      activeSelectedSite.enforceGps === false ||
+      activeSelectedSite.latitude == null ||
+      activeSelectedSite.longitude == null ||
+      (activeSelectedSite.distance != null && activeSelectedSite.distance <= (activeSelectedSite.geofenceRadius || 100))
+    )
+  );
+  const canClockIn = isClockedIn || isAtSite || (activeSelectedSite?.enforceGps === false) || (activeSelectedSite?.latitude == null);
 
   // ── Hold-to-Clock logic ─────────────────────────────────────────
   const startHold = () => {

@@ -229,8 +229,15 @@ export default function TechnicianHome() {
   };
 
   // Derive active site and geofence state
-  const isAtSite = Boolean(job && job.distance != null && job.distance <= (job.geofenceRadius || 100));
-  const canClockIn = isClockedIn || isAtSite || (job?.enforceGps === false);
+  const isAtSite = Boolean(
+    job && (
+      job.enforceGps === false ||
+      job.latitude == null ||
+      job.longitude == null ||
+      (job.distance != null && job.distance <= (job.geofenceRadius || 100))
+    )
+  );
+  const canClockIn = isClockedIn || isAtSite || (job?.enforceGps === false) || (job?.latitude == null);
 
   // ── Hold-to-Clock logic ─────────────────────────────────────────
   const startHold = () => {

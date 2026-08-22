@@ -267,6 +267,8 @@ export const getSupervisorProjects = query({
       assignedProjectIds = new Set(myAssignments.map((a) => a.projectId));
     }
 
+    const sysSettings = await ctx.db.query("settings").first();
+
     const enriched = await Promise.all(
       projects.map(async (project) => {
         const assignments = await ctx.db
@@ -339,6 +341,9 @@ export const getSupervisorProjects = query({
           visitedBySupervisorName: lastSupervisorVisit?.supervisorName || null,
           visitedAtTimeStr: lastSupervisorVisit?.checkInTimeStr || null,
           supervisorVisits,
+          enforceGps: sysSettings?.enforceGps ?? true,
+          geofenceRadius: sysSettings?.geofenceRadius ?? 100,
+          allowSelfClockIn: sysSettings?.allowSelfClockIn ?? true,
         };
       })
     );
