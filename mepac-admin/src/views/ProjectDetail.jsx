@@ -5,7 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import DeleteBlueprintModal from '../components/modals/DeleteBlueprintModal';
 
-export default function ProjectDetail({ projectId, project, setActiveView, openModal, workforce, onAssignWorker, onRemoveWorker }) {
+export default function ProjectDetail({ projectId, project, isProjectsLoading, setActiveView, openModal, workforce, onAssignWorker, onRemoveWorker }) {
     const [activeRoleTab, setActiveRoleTab] = useState('All');
     const [showAssignUI, setShowAssignUI] = useState(false);
     const [assignRole, setAssignRole] = useState('');
@@ -16,10 +16,39 @@ export default function ProjectDetail({ projectId, project, setActiveView, openM
     const [blueprintToDelete, setBlueprintToDelete] = useState(null);
     const menuRef = useRef(null);
 
-    const employees = useQuery(api.assignments.getByProject, projectId ? { projectId } : "skip") || [];
-    const checkIns = useQuery(api.checkIns.getByProject, projectId ? { projectId } : "skip") || [];
-    const supervisorVisits = useQuery(api.checkIns.getProjectSupervisorVisits, projectId ? { projectId } : "skip") || {};
-    const rawBlueprints = useQuery(api.blueprints.getByProject, projectId ? { projectId } : "skip") || [];
+    const isValidProjectId = Boolean(projectId && typeof projectId === 'string' && projectId.trim() !== '');
+
+    const employees = useQuery(api.assignments.getByProject, isValidProjectId ? { projectId } : "skip") || [];
+    const checkIns = useQuery(api.checkIns.getByProject, isValidProjectId ? { projectId } : "skip") || [];
+    
+    // Safely compute supervisor visits for this project from checkIns & workforce
+    const supervisorVisits = React.useMemo(() => {
+        const supCheckIns = (checkIns || []).filter(c => {
+            const worker = (workforce || []).find(w => w._id === c.workerId);
+            return worker?.role === 'Supervisor' || c.role === 'Supervisor' || c.type === 'Proxy';
+        });
+        const isVisitedToday = supCheckIns.length > 0;
+        const lastVisit = isVisitedToday ? supCheckIns[0] : null;
+
+        return {
+            isVisitedToday,
+            lastVisitedBy: lastVisit?.name || lastVisit?.workerName || 'Supervisor',
+            lastVisitedTimeStr: lastVisit?.checkInTimeStr || (lastVisit?.checkInTime ? new Date(lastVisit.checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''),
+            historyVisits: supCheckIns.map(v => ({
+                _id: v._id || String(v.checkInTime),
+                supervisorName: v.name || v.workerName || 'Supervisor',
+                supervisorCode: v.workerCode || 'SUP',
+                initials: v.initials || 'SP',
+                dateStr: 'Today',
+                checkInTimeStr: v.checkInTimeStr || (v.checkInTime ? new Date(v.checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Active'),
+                checkOutTimeStr: v.checkOutTimeStr || 'On Site',
+                durationHours: v.hoursWorked || 'Active',
+                status: 'Checked-In'
+            }))
+        };
+    }, [checkIns, workforce]);
+
+    const rawBlueprints = useQuery(api.blueprints.getByProject, isValidProjectId ? { projectId } : "skip") || [];
     // Sort: pinnedAt first, then by creation time (newest first)
     const blueprints = [...rawBlueprints].sort((a, b) => {
         const timeA = a.pinnedAt ?? a._creationTime;
@@ -65,7 +94,35 @@ export default function ProjectDetail({ projectId, project, setActiveView, openM
         };
     }, [bpMenuOpenId]);
 
-    if (!project) return null;
+    if (!project) {
+        if (isProjectsLoading) {
+            return (
+                <section className="view active" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+                    <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+                        <div style={{
+                            width: '36px', height: '36px', border: '3px solid var(--border-subtle)',
+                            borderTopColor: 'var(--accent-blue)', borderRadius: '50%',
+                            animation: 'spin 0.8s linear infinite', margin: '0 auto 16px'
+                        }}></div>
+                        <p style={{ fontWeight: 500 }}>Loading project details...</p>
+                    </div>
+                </section>
+            );
+        }
+        return (
+            <section className="view active" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+                <div className="panel" style={{ textAlign: 'center', padding: '40px', maxWidth: '450px' }}>
+                    <h3 style={{ marginBottom: '12px', color: 'var(--text-primary)' }}>Project Not Found</h3>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '0.9rem' }}>
+                        The requested project could not be found or may have been deleted.
+                    </p>
+                    <button className="btn primary" onClick={() => setActiveView('view-projects')}>
+                        Return to Projects Hub
+                    </button>
+                </div>
+            </section>
+        );
+    }
 
     const roleOrder = ['Supervisor', 'Foreman', 'Technician'];
     const baseRoles = [...new Set(employees.map(emp => emp.role))].sort((a, b) => {
@@ -276,7 +333,7 @@ export default function ProjectDetail({ projectId, project, setActiveView, openM
                 <div className="project-detail-main">
                     <div className="project-detail-hero" style={{ 
                         backgroundImage: project.imageUrl ? `url(${project.imageUrl})` : 'none',
-                        backgroundColor: project.imageUrl ? 'transparent' : getProjectColor(project._id)
+                        backgroundColor: getProjectColor(project._id)
                     }}>
                         <div className="hero-overlay"></div>
                         <div className="hero-content" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
@@ -323,6 +380,9 @@ export default function ProjectDetail({ projectId, project, setActiveView, openM
                             </div>
                             <span
                                 style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
                                     padding: '4px 12px',
                                     borderRadius: '12px',
                                     fontSize: '11px',
@@ -332,7 +392,8 @@ export default function ProjectDetail({ projectId, project, setActiveView, openM
                                     border: `1px solid ${supervisorVisits.isVisitedToday ? '#bbf7d0' : '#fde68a'}`,
                                 }}
                             >
-                                {supervisorVisits.isVisitedToday ? '🟢 Inspected Today' : '🟡 Awaiting Visit'}
+                                <ShieldCheck size={13} />
+                                {supervisorVisits.isVisitedToday ? 'Inspected Today' : 'Awaiting Visit'}
                             </span>
                         </div>
 

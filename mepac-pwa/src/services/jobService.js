@@ -24,6 +24,28 @@ export const getCurrentJob = async (userId) => {
 };
 
 /**
+ * Fetch all projects assigned to a worker.
+ * @param {string} userId
+ */
+export const getAssignedProjectsForUser = async (userId) => {
+  try {
+    if (userId) {
+      const allProjects = await convexClient.query(
+        api.projects.getSupervisorProjects,
+        { workerId: userId }
+      );
+      if (allProjects && Array.isArray(allProjects)) {
+        return allProjects.filter((p) => p.isAssignedToMe && !p.isCompleted);
+      }
+    }
+  } catch (err) {
+    console.warn('Convex getAssignedProjectsForUser error:', err);
+  }
+
+  return [];
+};
+
+/**
  * Fetch all supervisor projects.
  * @param {string} [workerId]
  */
@@ -40,3 +62,5 @@ export const getSupervisorProjects = async (workerId) => {
 
   return [];
 };
+
+

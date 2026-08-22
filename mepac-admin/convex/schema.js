@@ -20,6 +20,9 @@ export default defineSchema({
     pin: v.optional(v.string()),     // Worker's own PIN; never returned to frontend
     pinIsDefault: v.optional(v.boolean()), // true = worker has not yet changed their PIN
     isActive: v.boolean(),
+    currentSessionId: v.optional(v.string()), // Unique single-device active session token
+    lastSessionAt: v.optional(v.number()),    // Timestamp when session was last claimed/updated
+    lastDeviceName: v.optional(v.string()),   // Device/Browser identifier
   }),
 
   // ── Projects ──────────────────────────────────────────────────
@@ -84,12 +87,15 @@ export default defineSchema({
     .index("by_blueprint", ["blueprintId"])
     .index("by_blueprint_and_version", ["blueprintId", "version"]),
 
-  // ── Notifications (Global) ────────────────────────────────────
+  // ── Notifications (Global & Worker) ──────────────────────────
   notifications: defineTable({
     title: v.string(),
     desc: v.string(),
     createdAt: v.number(),
     isRead: v.boolean(),
+    recipientWorkerId: v.optional(v.id("workers")),
+    role: v.optional(v.string()),
+    type: v.optional(v.string()),
   }).index("by_created", ["createdAt"]),
 
   // ── Settings (Singleton) ──────────────────────────────────────

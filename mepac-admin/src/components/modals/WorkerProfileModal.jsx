@@ -64,8 +64,6 @@ export default function WorkerProfileModal({
     const overrideAttendance = useMutation(api.checkIns.adminOverrideAttendance);
     const deleteAttendance = useMutation(api.checkIns.adminDeleteAttendance);
 
-    if (!worker) return null;
-
     // Map records by YYYY-MM-DD
     const recordsByDate = useMemo(() => {
         const map = new Map();
@@ -239,10 +237,9 @@ export default function WorkerProfileModal({
         }
     };
 
-    const roleBadge = getRoleBadgeStyle(worker.role);
-
     // Selected Date Formatted display
     const selectedDateDisplay = useMemo(() => {
+        if (!selectedDateKey) return '';
         const [y, m, d] = selectedDateKey.split('-').map(Number);
         const dt = new Date(y, m - 1, d);
         return dt.toLocaleDateString('en-US', {
@@ -252,6 +249,10 @@ export default function WorkerProfileModal({
             day: 'numeric'
         });
     }, [selectedDateKey]);
+
+    if (!worker) return null;
+
+    const roleBadge = getRoleBadgeStyle(worker.role);
 
     return (
         <div className="modal-overlay active" style={{ zIndex: 2500 }} onClick={onClose}>

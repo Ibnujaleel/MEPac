@@ -23,6 +23,7 @@ import { api } from '../../convex.js';
 import Card from '../../components/Card';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
+import NotificationBellButton from '../../components/NotificationBellButton';
 import useAuthStore from '../../store/authStore';
 import { getSupervisorProjects } from '../../services/jobService';
 
@@ -420,9 +421,7 @@ export default function SupervisorRfis() {
         <h1 className="text-xl font-bold font-heading text-text-primary">
           RFI & Disputes Hub
         </h1>
-        <button className="w-10 h-10 rounded-full border border-border flex items-center justify-center hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40">
-          <Bell size={20} className="text-text-secondary" />
-        </button>
+        <NotificationBellButton />
       </header>
 
       {/* ── Filter Controls (Matching Foreman Proxy Reason Dropdown Style) ── */}

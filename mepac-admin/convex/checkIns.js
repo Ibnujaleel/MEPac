@@ -275,24 +275,23 @@ export const clockInWorker = mutation({
       .withIndex("by_worker", (q) => q.eq("workerId", args.workerId))
       .collect();
 
-    const todayCheckIn = existingCheckIns.find(
-      (c) => c.checkInTime >= startOfDay
+    const todayCheckInForProject = existingCheckIns.find(
+      (c) => c.checkInTime >= startOfDay && c.projectId === projectId
     );
 
     const type = args.type || "Self";
     const status = type === "Proxy" ? "Pending Approval" : "Verified";
 
     let checkInId;
-    if (todayCheckIn) {
-      if (!todayCheckIn.checkOutTime) {
-        return todayCheckIn._id;
+    if (todayCheckInForProject) {
+      if (!todayCheckInForProject.checkOutTime) {
+        return todayCheckInForProject._id;
       }
-      // If worker previously clocked out today, UPDATE existing record instead of adding duplicate row!
-      checkInId = todayCheckIn._id;
-      await ctx.db.replace(todayCheckIn._id, {
-        projectId,
-        workerId: args.workerId,
+      // If worker previously clocked out of this project today, reactivate / update
+      checkInId = todayCheckInForProject._id;
+      await ctx.db.patch(todayCheckInForProject._id, {
         checkInTime: Date.now(),
+        checkOutTime: undefined,
         type,
         status,
       });
@@ -557,16 +556,17 @@ export const getAllToday = query({
       (c) => c.checkInTime >= startOfDay
     );
 
-    // Deduplicate by workerId to keep only the latest check-in per worker today
-    const latestByWorker = new Map();
+    // Keep the latest check-in per worker per project today
+    const latestByWorkerProject = new Map();
     for (const checkIn of todayCheckIns) {
-      const existing = latestByWorker.get(checkIn.workerId);
+      const key = `${checkIn.workerId}_${checkIn.projectId}`;
+      const existing = latestByWorkerProject.get(key);
       if (!existing || checkIn.checkInTime > existing.checkInTime) {
-        latestByWorker.set(checkIn.workerId, checkIn);
+        latestByWorkerProject.set(key, checkIn);
       }
     }
 
-    const deduplicatedTodayCheckIns = Array.from(latestByWorker.values());
+    const deduplicatedTodayCheckIns = Array.from(latestByWorkerProject.values());
 
     const enriched = await Promise.all(
       deduplicatedTodayCheckIns.map(async (checkIn) => {
@@ -590,11 +590,14 @@ export const getAllToday = query({
         return {
           _id: checkIn._id,
           workerId: checkIn.workerId,
+          projectId: checkIn.projectId,
           workerName: `${worker.firstName} ${worker.lastName}`,
+          name: `${worker.firstName} ${worker.lastName}`,
           workerCode: worker.workerCode || "W-000",
           role: worker.role,
           initials: getInitials(worker.firstName, worker.lastName),
           projectName: project?.name || "Unknown",
+          projectLocation: project?.location || "",
           checkInTime: checkIn.checkInTime,
           checkInTimeStr,
           checkOutTime: checkIn.checkOutTime || null,

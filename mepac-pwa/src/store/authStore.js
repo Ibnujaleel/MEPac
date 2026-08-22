@@ -40,10 +40,16 @@ const useAuthStore = create((set) => ({
   error: null,
 
   // ── Actions ────────────────────────────────────────────────
-  login: async (phone, pin) => {
+  login: async (phone, pin, forceOverride = false) => {
     set({ isLoading: true, error: null });
     try {
-      const { user, role } = await authService.login(phone, pin);
+      const res = await authService.login(phone, pin, forceOverride);
+      if (res?.hasActiveSession) {
+        set({ isLoading: false });
+        return res;
+      }
+
+      const { user, role } = res;
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ user, role }));
       set({
         user,
@@ -52,7 +58,7 @@ const useAuthStore = create((set) => ({
         isLoading: false,
         error: null,
       });
-      return role;
+      return { user, role };
     } catch (err) {
       set({
         user: null,

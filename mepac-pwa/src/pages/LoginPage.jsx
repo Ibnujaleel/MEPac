@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Phone, ArrowRight } from 'lucide-react';
+import { Phone, ArrowRight, ShieldAlert, Smartphone, RefreshCw, X } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import PinInput from '../components/PinInput';
 import GoogleSignInButton from '../components/GoogleSignInButton';
@@ -18,6 +18,8 @@ export default function LoginPage() {
 
   const [phone, setPhone] = useState('');
   const [pin, setPin] = useState('');
+  const [sessionPrompt, setSessionPrompt] = useState(null);
+  const [isOverriding, setIsOverriding] = useState(false);
 
   const canSubmit = phone.replace(/\D/g, '').length >= 10 && pin.length === 6;
 
@@ -25,10 +27,32 @@ export default function LoginPage() {
     e.preventDefault();
     clearError();
     try {
-      const role = await login(phone, pin);
-      navigate(`/${role}/home`, { replace: true });
+      const res = await login(phone, pin, false);
+      if (res?.hasActiveSession) {
+        setSessionPrompt(res);
+        return;
+      }
+      if (res?.role) {
+        navigate(`/${res.role}/home`, { replace: true });
+      }
     } catch {
       // error is already set in the store
+    }
+  };
+
+  const handleConfirmOverride = async () => {
+    setIsOverriding(true);
+    clearError();
+    try {
+      const res = await login(phone, pin, true);
+      if (res?.role) {
+        setSessionPrompt(null);
+        navigate(`/${res.role}/home`, { replace: true });
+      }
+    } catch {
+      // error is set in store
+    } finally {
+      setIsOverriding(false);
     }
   };
 
@@ -163,6 +187,64 @@ export default function LoginPage() {
             </button>
           </div>
         </div>
+
+        {/* ── Active Session Conflict Confirmation Modal ── */}
+        {sessionPrompt && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+            <div className="w-full max-w-sm bg-surface-card border border-border rounded-lg shadow-2xl p-5 flex flex-col gap-4 text-center animate-scale-up">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-14 h-14 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-inner">
+                  <Smartphone size={28} strokeWidth={2} />
+                </div>
+                <h2 className="text-lg font-bold font-heading text-text-primary">
+                  Active Session Ongoing
+                </h2>
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  Your account is already signed in on <strong className="text-text-primary">{sessionPrompt.existingDeviceName || 'another device / tab'}</strong>.
+                </p>
+              </div>
+
+              <div className="p-3 bg-surface border border-border rounded-md text-left flex items-start gap-2.5">
+                <ShieldAlert size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-text-secondary">
+                  <span className="font-semibold text-text-primary block">Single Session Policy</span>
+                  Would you like to cancel the ongoing session and issue a fresh session on this device?
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleConfirmOverride}
+                  disabled={isOverriding}
+                  className="w-full py-3 px-4 rounded-md bg-primary hover:bg-primary-dark text-white text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 disabled:opacity-50"
+                >
+                  {isOverriding ? (
+                    <>
+                      <RefreshCw size={16} className="animate-spin" />
+                      <span>Issuing Fresh Session...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw size={16} />
+                      <span>Override & Start Fresh Session</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSessionPrompt(null)}
+                  disabled={isOverriding}
+                  className="w-full py-2.5 px-4 rounded-md border border-border bg-surface hover:bg-surface-card text-text-secondary hover:text-text-primary text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <X size={14} />
+                  <span>Cancel</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

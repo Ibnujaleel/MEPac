@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './index.css';
 
 // Convex Imports
@@ -8,6 +8,9 @@ import { api } from "../convex/_generated/api";
 // Layout Components
 import Sidebar from './components/Layout/Sidebar';
 import Topbar from './components/Layout/Topbar';
+import SessionLockModal from './components/auth/SessionLockModal';
+import ErrorBoundary from './components/ErrorBoundary';
+import { useSessionSecurity } from './utils/useSessionSecurity';
 
 // View Components
 import Dashboard from './views/Dashboard';
@@ -37,8 +40,8 @@ const VALID_VIEWS = [
   'view-drawings', 'view-settings'
 ];
 
-function getInitialState() {
-  const hash = window.location.hash.slice(1); // remove #
+function parseHash() {
+  const hash = window.location.hash.slice(1);
   if (!hash) return { view: 'view-dashboard', projectId: null };
 
   const params = new URLSearchParams(hash);
@@ -50,46 +53,66 @@ function getInitialState() {
 }
 
 export default function App() {
-  const initial = getInitialState();
+  const initial = parseHash();
   const [activeView, setActiveViewRaw] = useState(initial.view);
   const [selectedProjectId, setSelectedProjectId] = useState(initial.projectId);
   const [activeModal, setActiveModal] = useState(null);
   const [activePanel, setActivePanel] = useState(null);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  // Sync view to URL hash
-  const setActiveView = useCallback((view) => {
-    setActiveViewRaw(view);
-    // Clear project when navigating away from project details
-    if (view !== 'view-project-details') {
-      updateHash(view, null);
-    }
-  }, []);
+  // Security & Session Inactivity Lock (3hr timeout or screen off)
+  const { isLocked, lockReason, unlockSession } = useSessionSecurity();
+  const currentUser = useQuery(api.adminUsers.current);
 
-  const updateHash = (view, projectId) => {
+  // Flag to prevent hashchange listener from re-processing our own hash changes
+  const isUpdatingHash = useRef(false);
+
+  // Write state to URL hash (without triggering our own listener)
+  const writeHash = useCallback((view, projectId) => {
     const params = new URLSearchParams();
     params.set('view', view);
     if (projectId) params.set('project', projectId);
-    window.location.hash = params.toString();
-  };
+    const newHash = params.toString();
+    if (window.location.hash.slice(1) !== newHash) {
+      isUpdatingHash.current = true;
+      window.location.hash = newHash;
+      isUpdatingHash.current = false;
+    }
+  }, []);
 
-  // Update hash when project detail is entered
-  useEffect(() => {
-    updateHash(activeView, activeView === 'view-project-details' ? selectedProjectId : null);
-  }, [activeView, selectedProjectId]);
+  // Navigate to a view (used by sidebar, back buttons, etc.)
+  const setActiveView = useCallback((view) => {
+    setActiveViewRaw(view);
+    if (view !== 'view-project-details') {
+      setSelectedProjectId(null);
+      writeHash(view, null);
+    }
+  }, [writeHash]);
 
-  // Listen for browser back/forward
+  // Navigate to a specific project detail page
+  const navigateToProject = useCallback((projectId) => {
+    setSelectedProjectId(projectId);
+    setActiveViewRaw('view-project-details');
+    writeHash('view-project-details', projectId);
+  }, [writeHash]);
+
+  // Listen for browser back/forward only
   useEffect(() => {
     const handleHashChange = () => {
-      const state = getInitialState();
+      if (isUpdatingHash.current) return;
+      const state = parseHash();
       setActiveViewRaw(state.view);
-      if (state.projectId) setSelectedProjectId(state.projectId);
+      setSelectedProjectId(state.projectId);
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
   // Convex Queries
-  const projects = useQuery(api.projects.list) || [];
+  const projectsQuery = useQuery(api.projects.list);
+  const projects = projectsQuery || [];
+  const isProjectsLoading = projectsQuery === undefined;
+
   const workforce = useQuery(api.workers.list) || [];
   const notifications = useQuery(api.notifications.list) || [];
   const todayCheckIns = useQuery(api.checkIns.getAllToday) || [];
@@ -133,6 +156,23 @@ export default function App() {
 
   return (
     <div className="app-layout">
+      {/* Session Security Lock Screen (3h inactivity or screen off) */}
+      {isLocked && (
+        <SessionLockModal
+          currentUser={currentUser}
+          onUnlock={unlockSession}
+          reason={lockReason}
+        />
+      )}
+
+      {/* Mobile Sidebar Overlay Backdrop */}
+      {mobileSidebarOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {activePanel && (
         <div
           className="transparent-click-catcher"
@@ -147,20 +187,58 @@ export default function App() {
           }}
         />
       )}
-      <Sidebar activeView={activeView} setActiveView={setActiveView} />
+      <Sidebar
+        activeView={activeView}
+        setActiveView={setActiveView}
+        mobileOpen={mobileSidebarOpen}
+        onClose={() => setMobileSidebarOpen(false)}
+      />
 
       <main className="main-content">
-        <Topbar activeView={activeView} selectedProject={selectedProject} activePanel={activePanel} togglePanel={togglePanel} notifications={notifications} />
+        <Topbar
+          activeView={activeView}
+          selectedProject={selectedProject}
+          activePanel={activePanel}
+          togglePanel={togglePanel}
+          notifications={notifications}
+          onToggleSidebar={() => setMobileSidebarOpen(prev => !prev)}
+        />
 
         <div className="views-container">
-          {activeView === 'view-dashboard' && <Dashboard setActiveView={setActiveView} projects={projects} workforce={workforce} checkIns={todayCheckIns} />}
-          {activeView === 'view-projects' && <ProjectsHub openModal={openModal} projects={projects} setActiveView={setActiveView} setSelectedProject={(project) => setSelectedProjectId(project ? project._id : null)} />}
-          {activeView === 'view-project-details' && <ProjectDetail projectId={selectedProjectId} project={selectedProject} workforce={workforce} setActiveView={setActiveView} openModal={openModal} onAssignWorker={handleAddWorkerToProject} onRemoveWorker={handleRemoveWorkerFromProject} />}
-          {activeView === 'view-workforce' && <Workforce openModal={openModal} workforce={workforce} projects={projects} />}
-          {activeView === 'view-attendance' && <AttendanceLog setActiveView={setActiveView} projects={projects} checkIns={todayCheckIns} workforce={workforce} />}
-          {activeView === 'view-rfis' && <RFIs openModal={openModal} />}
-          {activeView === 'view-drawings' && <Drawings openModal={openModal} projects={projects} />}
-          {activeView === 'view-settings' && <Settings />}
+          <ErrorBoundary>
+            {activeView === 'view-dashboard' && <Dashboard setActiveView={setActiveView} projects={projects} workforce={workforce} checkIns={todayCheckIns} />}
+            {activeView === 'view-projects' && (
+              <ProjectsHub
+                openModal={openModal}
+                projects={projects}
+                isProjectsLoading={isProjectsLoading}
+                todayCheckIns={todayCheckIns}
+                setActiveView={setActiveView}
+                setSelectedProject={(project) => {
+                  if (project && project._id) {
+                    navigateToProject(project._id);
+                  }
+                }}
+              />
+            )}
+            {activeView === 'view-project-details' && (
+              <ProjectDetail
+                projectId={selectedProjectId}
+                project={selectedProject}
+                isProjectsLoading={isProjectsLoading}
+                workforce={workforce}
+                setActiveView={setActiveView}
+                openModal={openModal}
+                onAssignWorker={handleAddWorkerToProject}
+                onRemoveWorker={handleRemoveWorkerFromProject}
+              />
+            )}
+            {activeView === 'view-workforce' && <Workforce openModal={openModal} workforce={workforce} projects={projects} />}
+            {activeView === 'view-attendance' && <AttendanceLog setActiveView={setActiveView} projects={projects} checkIns={todayCheckIns} workforce={workforce} />}
+            {activeView === 'view-rfis' && <RFIs openModal={openModal} />}
+            {activeView === 'view-drawings' && <Drawings openModal={openModal} projects={projects} />}
+            {activeView === 'view-settings' && <Settings />}
+          </ErrorBoundary>
         </div>
       </main>
 

@@ -232,6 +232,44 @@ export default function SupervisorProjectDetail() {
           </div>
         </Card>
 
+        {/* ── Supervisor Inspection Real-Time Status Banner ── */}
+        {(() => {
+          const supervisorVisit = checkIns.find(
+            (c) => c.role === 'Supervisor' || c.workerRole === 'Supervisor' || c.type === 'Proxy'
+          );
+          const isVisited = Boolean(supervisorVisit || project.isVisitedToday);
+          const visitName = supervisorVisit?.name || supervisorVisit?.workerName || project.visitedBySupervisorName || 'Supervisor';
+          const visitTime = supervisorVisit?.checkInTimeStr || project.visitedAtTimeStr || 'Today';
+
+          return (
+            <div className={[
+              'flex items-center justify-between p-3 rounded-md border text-xs font-semibold shadow-xs',
+              isVisited
+                ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                : 'bg-amber-50 text-amber-900 border-amber-200',
+            ].join(' ')}>
+              <div className="flex items-center gap-2">
+                {isVisited ? (
+                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" strokeWidth={2.5} />
+                ) : (
+                  <Circle size={16} className="text-amber-600 shrink-0" strokeWidth={2} />
+                )}
+                <span>
+                  {isVisited
+                    ? `Site Inspection Verified: Visited by ${visitName} at ${visitTime}`
+                    : 'Supervisor Site Inspection: Awaiting visit today'}
+                </span>
+              </div>
+              <span className={[
+                'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase',
+                isVisited ? 'bg-emerald-200 text-emerald-900' : 'bg-amber-200 text-amber-900'
+              ].join(' ')}>
+                {isVisited ? 'Inspected' : 'Pending'}
+              </span>
+            </div>
+          );
+        })()}
+
         {/* ── Tabs Navigation ────────────────────────────────── */}
         <div className="flex border-b border-border bg-surface-card rounded-t-sm px-2 pt-2 gap-1 overflow-x-auto">
           <button
@@ -278,17 +316,17 @@ export default function SupervisorProjectDetail() {
         {activeTab === 'workforce' && (
           <div className="flex flex-col gap-4">
             {/* Header + Action */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               {/* Role filter pills */}
-              <div className="flex items-center gap-1 bg-surface-card p-1 rounded-sm border border-border text-xs font-semibold">
+              <div className="flex items-center gap-1 bg-surface-card p-1 rounded-md border border-border text-xs font-semibold overflow-x-auto no-scrollbar max-w-full">
                 {['All', 'Supervisor', 'Foreman', 'Technician'].map((r) => (
                   <button
                     key={r}
                     onClick={() => setRoleFilter(r)}
                     className={[
-                      'px-3 py-1 rounded-xs transition-colors',
+                      'px-3 py-1.5 rounded-sm transition-colors whitespace-nowrap shrink-0',
                       roleFilter === r
-                        ? 'bg-primary text-white font-bold'
+                        ? 'bg-primary text-white font-bold shadow-xs'
                         : 'text-text-secondary hover:text-text-primary',
                     ].join(' ')}
                   >
@@ -299,10 +337,10 @@ export default function SupervisorProjectDetail() {
 
               <button
                 onClick={() => setShowAssignModal(true)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-sm bg-primary text-white text-xs font-semibold hover:bg-primary-light transition-colors"
+                className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-md bg-primary text-white text-xs font-semibold hover:bg-primary-light transition-colors w-full sm:w-auto shrink-0 shadow-xs"
               >
                 <UserPlus size={16} />
-                <span>Assign Worker</span>
+                <span>+ Assign Worker</span>
               </button>
             </div>
 
@@ -519,32 +557,33 @@ export default function SupervisorProjectDetail() {
 
       {/* ── Assign Worker Modal ──────────────────────────────── */}
       {showAssignModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-surface-card rounded-md border border-border shadow-lg w-full max-w-md p-6 flex flex-col gap-4 max-h-[85vh] overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-surface-card rounded-xl border border-border shadow-2xl w-full max-w-md p-4 sm:p-6 flex flex-col gap-3.5 max-h-[90vh] overflow-hidden animate-scale-in">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="text-lg font-bold font-heading text-text-primary flex items-center gap-2">
-                <UserPlus size={18} className="text-primary" />
-                Assign Worker to Project
+              <h3 className="text-base sm:text-lg font-bold font-heading text-text-primary flex items-center gap-2">
+                <UserPlus size={18} className="text-primary shrink-0" />
+                <span>Assign Worker to Project</span>
               </h3>
               <button
                 onClick={() => setShowAssignModal(false)}
-                className="p-1 rounded-full hover:bg-surface text-text-muted hover:text-text-primary transition-colors"
+                className="p-1.5 rounded-full hover:bg-surface text-text-muted hover:text-text-primary transition-colors shrink-0"
+                aria-label="Close modal"
               >
                 <X size={18} />
               </button>
             </div>
 
             {/* Role Filter Buttons */}
-            <div className="flex gap-2 border-b border-border pb-3">
+            <div className="flex gap-1.5 border-b border-border pb-3 overflow-x-auto no-scrollbar">
               {['Technician', 'Foreman', 'Supervisor'].map((r) => (
                 <button
                   key={r}
                   onClick={() => setSelectedRole(r)}
                   className={[
-                    'flex-1 py-1.5 rounded-sm text-xs font-bold text-center transition-colors',
+                    'flex-1 py-1.5 px-2 rounded-md text-xs font-bold text-center transition-colors whitespace-nowrap',
                     selectedRole === r
-                      ? 'bg-primary text-white'
+                      ? 'bg-primary text-white shadow-xs'
                       : 'bg-surface border border-border text-text-secondary hover:text-text-primary',
                   ].join(' ')}
                 >
@@ -555,39 +594,39 @@ export default function SupervisorProjectDetail() {
 
             {/* Search Input */}
             <div className="relative">
-              <Search size={16} className="absolute left-3 top-3 text-text-muted" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" />
               <input
                 type="text"
                 placeholder={`Search unassigned ${selectedRole}s...`}
                 value={assignSearch}
                 onChange={(e) => setAssignSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-sm bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-md bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
 
             {/* Available Workers List */}
-            <div className="flex flex-col gap-2 overflow-y-auto max-h-[300px] pr-1">
+            <div className="flex flex-col gap-2 overflow-y-auto max-h-[320px] pr-0.5 -mr-0.5">
               {availableWorkers.length > 0 ? (
                 availableWorkers.map((w) => (
                   <div
                     key={w._id}
-                    className="flex items-center justify-between p-3 rounded-sm border border-border bg-surface hover:bg-surface-card transition-colors"
+                    className="flex items-center justify-between p-2.5 sm:p-3 rounded-md border border-border bg-surface hover:bg-surface-card transition-colors gap-2"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs font-heading">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs font-heading shrink-0">
                         {w.initials || w.firstName[0]}
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold font-heading text-text-primary">
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="text-sm font-semibold font-heading text-text-primary truncate">
                           {w.firstName} {w.lastName}
                         </span>
-                        <span className="text-xs text-text-muted">{w.workerCode}</span>
+                        <span className="text-xs text-text-muted truncate">{w.workerCode}</span>
                       </div>
                     </div>
 
                     <button
                       onClick={() => handleAssign(w._id)}
-                      className="flex items-center gap-1 px-3 py-1 bg-primary text-white rounded-sm text-xs font-semibold hover:bg-primary-light transition-colors"
+                      className="flex items-center gap-1 px-3 py-1.5 bg-primary text-white rounded-md text-xs font-semibold hover:bg-primary-light transition-colors shrink-0 shadow-xs active:scale-95"
                     >
                       <Check size={14} />
                       <span>Add</span>
@@ -603,7 +642,7 @@ export default function SupervisorProjectDetail() {
 
             {/* Close Button */}
             <div className="pt-2 border-t border-border flex justify-end">
-              <Button variant="secondary" size="md" onClick={() => setShowAssignModal(false)}>
+              <Button variant="secondary" size="md" onClick={() => setShowAssignModal(false)} className="w-full sm:w-auto justify-center">
                 Done
               </Button>
             </div>

@@ -1,3 +1,13 @@
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
 /* ==========================================================================
    CSS Variables & Design System (Based on design.md)
    ========================================================================== */
@@ -83,7 +93,11 @@
     display: none !important;
 }
 
-body {
+html,
+body,
+#root {
+    height: 100%;
+    width: 100%;
     font-family: var(--font-body);
     background-color: var(--bg-base);
     color: var(--text-primary);
@@ -1675,3 +1689,146 @@ input:checked+.slider:before {
     from { opacity: 0; transform: translateY(-4px) scale(0.97); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+/* ==========================================================================
+   Responsive Layout & Mobile Drawer System
+   ========================================================================== */
+.sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 1050;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.mobile-sidebar-close {
+    display: none;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 6px;
+}
+
+@media (max-width: 1024px) {
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        z-index: 1100;
+        transform: translateX(-100%);
+        transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
+        background-color: var(--bg-surface);
+        width: 280px;
+    }
+
+    .sidebar.mobile-open {
+        transform: translateX(0);
+    }
+
+    .mobile-menu-btn {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+    .mobile-sidebar-close {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .main-content {
+        width: 100vw;
+        min-width: 100vw;
+    }
+
+    .topbar {
+        padding: 0 16px;
+        height: 64px;
+    }
+
+    .views-container {
+        padding: 20px 16px;
+    }
+}
+
+@media (max-width: 768px) {
+    .topbar-title {
+        font-size: 1.05rem !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 180px;
+    }
+
+    .view-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .view-header .header-actions {
+        width: 100%;
+    }
+
+    .view-header .header-actions button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .project-card-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .metrics-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .project-detail-hero {
+        height: 180px;
+    }
+
+    .hero-content {
+        padding: 16px;
+    }
+
+    .hero-content h1 {
+        font-size: 1.3rem;
+    }
+
+    .data-table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .panel {
+        padding: 16px !important;
+        border-radius: var(--radius-md);
+    }
+
+    .modal-content,
+    .modal-card {
+        width: 94vw !important;
+        max-width: 94vw !important;
+        margin: 10px auto;
+        padding: 20px 16px !important;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .tabs-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}

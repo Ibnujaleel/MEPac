@@ -1,59 +1,64 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, ChevronRight, ArrowUpDown, Check, CheckCircle2, Circle, MapPin, ExternalLink } from 'lucide-react';
+import { useQuery } from 'convex/react';
+import { api } from '../../convex.js';
 import useAuthStore from '../../store/authStore';
-import { getSupervisorProjects } from '../../services/jobService';
 import Card from '../../components/Card';
+import NotificationBellButton from '../../components/NotificationBellButton';
 
 export default function SupervisorProjects() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
 
-  const [currentProjects, setCurrentProjects] = useState([]);
-  const [oldProjects, setOldProjects] = useState([]);
   const [sortOption, setSortOption] = useState('alphabetical'); // 'alphabetical' | 'visited'
   const [isSortOpen, setIsSortOpen] = useState(false);
   const sortRef = useRef(null);
 
-  const loadProjects = useCallback(async () => {
-    try {
-      const data = await getSupervisorProjects(user?.id);
-      const active = [];
-      const completed = [];
+  // Real-time reactive query for supervisor projects
+  const rawProjects = useQuery(
+    api.projects.getSupervisorProjects,
+    user?.id ? { workerId: user.id } : {}
+  );
 
-      if (data && data.length > 0) {
-        data.forEach((p) => {
-          const item = {
-            id: p.id,
-            name: p.name,
-            client: p.client,
-            phase: p.location || 'Active MEP',
-            location: p.location,
-            latitude: p.latitude,
-            longitude: p.longitude,
-            visited: Boolean(p.presentCount > 0),
-            isAssignedToMe: Boolean(p.isAssignedToMe),
-          };
+  const { currentProjects, oldProjects } = useMemo(() => {
+    const active = [];
+    const completed = [];
 
-          if (p.isCompleted) {
-            completed.push({ ...item, phase: 'Completed' });
-          } else {
-            active.push(item);
-          }
-        });
-      }
-      setCurrentProjects(active);
-      setOldProjects(completed);
-    } catch (err) {
-      console.warn('Failed to load supervisor projects:', err);
-      setCurrentProjects([]);
-      setOldProjects([]);
+    if (rawProjects && Array.isArray(rawProjects)) {
+      rawProjects.forEach((p) => {
+        const item = {
+          id: p.id || p._id,
+          name: p.name,
+          client: p.client,
+          phase: p.location || 'Active MEP',
+          location: p.location,
+          latitude: p.latitude,
+          longitude: p.longitude,
+          visited: Boolean(p.isVisitedByMe || p.isVisitedToday),
+          isVisitedByMe: Boolean(p.isVisitedByMe),
+          isVisitedToday: Boolean(p.isVisitedToday),
+          visitedAtTimeStr: p.visitedAtTimeStr || null,
+          visitedBySupervisorName: p.visitedBySupervisorName || null,
+          isAssignedToMe: Boolean(p.isAssignedToMe),
+        };
+
+        if (p.isCompleted) {
+          completed.push({ ...item, phase: 'Completed' });
+        } else {
+          active.push(item);
+        }
+      });
     }
-  }, [user]);
 
-  useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
+    if (sortOption === 'alphabetical') {
+      active.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortOption === 'visited') {
+      active.sort((a, b) => (b.visited ? 1 : 0) - (a.visited ? 1 : 0));
+    }
+
+    return { currentProjects: active, oldProjects: completed };
+  }, [rawProjects, sortOption]);
 
   // Close sort dropdown when clicking outside
   useEffect(() => {
@@ -69,14 +74,6 @@ export default function SupervisorProjects() {
   const handleSortChange = (option) => {
     setSortOption(option);
     setIsSortOpen(false);
-
-    const sorted = [...currentProjects];
-    if (option === 'alphabetical') {
-      sorted.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (option === 'visited') {
-      sorted.sort((a, b) => (b.visited ? 1 : 0) - (a.visited ? 1 : 0));
-    }
-    setCurrentProjects(sorted);
   };
 
   return (
@@ -86,9 +83,7 @@ export default function SupervisorProjects() {
         <h1 className="text-xl font-bold font-heading text-text-primary">
           Projects
         </h1>
-        <button className="w-10 h-10 rounded-full border border-border flex items-center justify-center hover:bg-surface transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40">
-          <Bell size={20} className="text-text-secondary" />
-        </button>
+        <NotificationBellButton />
       </header>
 
       {/* ── Main Content ────────────────────────────────────── */}
@@ -164,7 +159,7 @@ export default function SupervisorProjects() {
                           {project.name}
                         </h3>
                         {project.isAssignedToMe && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200">
                             Assigned to Me
                           </span>
                         )}
@@ -183,14 +178,14 @@ export default function SupervisorProjects() {
                       </a>
 
                       {project.visited ? (
-                        <div className="flex items-center gap-1 text-success mt-1">
-                          <CheckCircle2 size={14} strokeWidth={2.5} />
-                          <span className="text-[11px] font-semibold">Checked In Today</span>
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold w-fit mt-1">
+                          <CheckCircle2 size={13} className="text-emerald-600 shrink-0" strokeWidth={2.5} />
+                          <span>Inspected Today {project.visitedAtTimeStr ? `(${project.visitedAtTimeStr})` : ''}</span>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1 text-text-muted mt-1">
-                          <Circle size={14} strokeWidth={1.5} />
-                          <span className="text-[11px] font-semibold">Active Site</span>
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold w-fit mt-1">
+                          <Circle size={12} className="text-amber-600 shrink-0" strokeWidth={2} />
+                          <span>Awaiting Visit Today</span>
                         </div>
                       )}
                     </div>

@@ -17,6 +17,16 @@ function getStartOfDayIST(timestamp = Date.now()) {
   return Date.UTC(year, month, date) - IST_OFFSET_MS;
 }
 
+function formatTimeIST(timestamp) {
+  if (!timestamp) return null;
+  return new Date(timestamp).toLocaleTimeString("en-US", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 // ── Queries ─────────────────────────────────────────────────────
 
 export const list = query({
@@ -38,6 +48,30 @@ export const list = query({
           .collect();
         const todayCheckIns = checkIns.filter((c) => c.checkInTime >= startOfDay);
 
+        // Find supervisor visits for today
+        const supervisorVisits = [];
+        for (const c of todayCheckIns) {
+          const worker = await ctx.db.get(c.workerId);
+          if (worker && (worker.role === "Supervisor" || c.type === "Proxy")) {
+            supervisorVisits.push({
+              _id: c._id,
+              workerId: c.workerId,
+              supervisorName: `${worker.firstName} ${worker.lastName}`,
+              supervisorCode: worker.workerCode || "SUP",
+              checkInTime: c.checkInTime,
+              checkInTimeStr: formatTimeIST(c.checkInTime),
+              checkOutTime: c.checkOutTime || null,
+              checkOutTimeStr: formatTimeIST(c.checkOutTime),
+              status: c.status,
+            });
+          }
+        }
+
+        // Sort by newest visit first
+        supervisorVisits.sort((a, b) => b.checkInTime - a.checkInTime);
+        const isVisitedToday = supervisorVisits.length > 0;
+        const lastSupervisorVisit = isVisitedToday ? supervisorVisits[0] : null;
+
         let imageUrl = null;
         if (project.imageStorageId) {
           imageUrl = await ctx.storage.getUrl(project.imageStorageId);
@@ -48,6 +82,10 @@ export const list = query({
           imageUrl,
           totalAssigned: assignments.length,
           employeesPresent: todayCheckIns.length,
+          isVisitedToday,
+          visitedBySupervisorName: lastSupervisorVisit?.supervisorName || null,
+          visitedAtTimeStr: lastSupervisorVisit?.checkInTimeStr || null,
+          supervisorVisits,
         };
       })
     );
@@ -254,8 +292,35 @@ export const getSupervisorProjects = query({
           .collect();
         const todayCheckIns = checkIns.filter((c) => c.checkInTime >= startOfDay);
 
+        // Find supervisor visits for today
+        const supervisorVisits = [];
+        for (const c of todayCheckIns) {
+          const worker = await ctx.db.get(c.workerId);
+          if (worker && (worker.role === "Supervisor" || c.type === "Proxy")) {
+            supervisorVisits.push({
+              _id: c._id,
+              workerId: c.workerId,
+              supervisorName: `${worker.firstName} ${worker.lastName}`,
+              supervisorCode: worker.workerCode || "SUP",
+              checkInTime: c.checkInTime,
+              checkInTimeStr: formatTimeIST(c.checkInTime),
+              checkOutTime: c.checkOutTime || null,
+              checkOutTimeStr: formatTimeIST(c.checkOutTime),
+              status: c.status,
+            });
+          }
+        }
+
+        supervisorVisits.sort((a, b) => b.checkInTime - a.checkInTime);
+        const isVisitedToday = supervisorVisits.length > 0;
+        const lastSupervisorVisit = isVisitedToday ? supervisorVisits[0] : null;
+        const isVisitedByMe = args.workerId
+          ? supervisorVisits.some((v) => v.workerId === args.workerId)
+          : isVisitedToday;
+
         return {
           id: project._id,
+          _id: project._id,
           name: project.name,
           client: project.client,
           location: project.location,
@@ -269,6 +334,11 @@ export const getSupervisorProjects = query({
           blueprintsCount: blueprints.length,
           isCompleted: project.isCompleted,
           isAssignedToMe: args.workerId ? assignedProjectIds.has(project._id) : true,
+          isVisitedToday,
+          isVisitedByMe,
+          visitedBySupervisorName: lastSupervisorVisit?.supervisorName || null,
+          visitedAtTimeStr: lastSupervisorVisit?.checkInTimeStr || null,
+          supervisorVisits,
         };
       })
     );

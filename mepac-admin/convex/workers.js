@@ -206,6 +206,9 @@ export const loginWithPin = mutation({
   args: {
     mobile: v.string(),
     pin: v.string(),
+    sessionId: v.optional(v.string()),
+    deviceName: v.optional(v.string()),
+    forceOverride: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const cleanMobile = args.mobile.replace(/\D/g, "");
@@ -232,6 +235,33 @@ export const loginWithPin = mutation({
       throw new Error("Your account has been deactivated. Please contact admin.");
     }
 
+    // Generate or use unique single-active-device session token
+    const sessionToken = args.sessionId || `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+    // Check if worker already has an ongoing active session on a different device
+    const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
+    const hasOngoingSession = Boolean(
+      worker.currentSessionId &&
+      worker.currentSessionId !== sessionToken &&
+      worker.lastSessionAt &&
+      Date.now() - worker.lastSessionAt < TWELVE_HOURS_MS
+    );
+
+    if (hasOngoingSession && !args.forceOverride) {
+      return {
+        hasActiveSession: true,
+        existingDeviceName: worker.lastDeviceName || "Another Device",
+        lastSessionAt: worker.lastSessionAt,
+      };
+    }
+
+    // Override previous active device session
+    await ctx.db.patch(worker._id, {
+      currentSessionId: sessionToken,
+      lastSessionAt: Date.now(),
+      lastDeviceName: args.deviceName || "Mobile PWA",
+    });
+
     const roleLower = worker.role.toLowerCase();
     const department =
       worker.role === "Supervisor"
@@ -241,6 +271,7 @@ export const loginWithPin = mutation({
         : "HVAC";
 
     return {
+      hasActiveSession: false,
       user: {
         id: worker._id,
         name: `${worker.firstName} ${worker.lastName}`,
@@ -251,9 +282,46 @@ export const loginWithPin = mutation({
         workerCode: worker.workerCode || "W-000",
         department,
         avatar: null,
+        sessionId: sessionToken,
       },
       role: roleLower,
+      sessionId: sessionToken,
     };
+  },
+});
+
+export const getActiveSession = query({
+  args: { workerId: v.id("workers") },
+  handler: async (ctx, args) => {
+    const worker = await ctx.db.get(args.workerId);
+    if (!worker) return null;
+    return {
+      currentSessionId: worker.currentSessionId || null,
+      lastSessionAt: worker.lastSessionAt || null,
+      lastDeviceName: worker.lastDeviceName || "Unknown Device",
+      isActive: worker.isActive !== false,
+    };
+  },
+});
+
+export const claimSession = mutation({
+  args: {
+    workerId: v.id("workers"),
+    sessionId: v.string(),
+    deviceName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const worker = await ctx.db.get(args.workerId);
+    if (!worker) throw new Error("Worker not found");
+    if (worker.isActive === false) throw new Error("Account deactivated");
+
+    await ctx.db.patch(args.workerId, {
+      currentSessionId: args.sessionId,
+      lastSessionAt: Date.now(),
+      lastDeviceName: args.deviceName || "Mobile PWA",
+    });
+
+    return { success: true, sessionId: args.sessionId };
   },
 });
 

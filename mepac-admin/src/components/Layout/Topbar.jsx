@@ -1,10 +1,10 @@
 import React from 'react';
-import { Bell, User, LogOut } from 'lucide-react';
+import { Bell, User, LogOut, Menu } from 'lucide-react';
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 
-export default function Topbar({ activeView, selectedProject, activePanel, togglePanel, notifications = [] }) {
+export default function Topbar({ activeView, selectedProject, activePanel, togglePanel, notifications = [], onToggleSidebar }) {
     const { signOut } = useAuthActions();
     const currentUser = useQuery(api.adminUsers.current);
     const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -27,8 +27,24 @@ export default function Topbar({ activeView, selectedProject, activePanel, toggl
 
     return (
         <header className="topbar" style={{ position: 'relative', zIndex: 1000 }}>
-            <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                {getPageTitle()}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button
+                    className="icon-btn mobile-menu-btn"
+                    onClick={onToggleSidebar}
+                    aria-label="Toggle navigation menu"
+                    style={{
+                        display: 'none',
+                        background: 'transparent',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '8px',
+                        padding: '6px'
+                    }}
+                >
+                    <Menu size={20} />
+                </button>
+                <div className="topbar-title" style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {getPageTitle()}
+                </div>
             </div>
             <div className="topbar-actions">
                 <button className="icon-btn notif-btn" onClick={(e) => togglePanel('notifications', e)}>

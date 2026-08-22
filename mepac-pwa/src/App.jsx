@@ -38,70 +38,75 @@ import SupervisorChangePin from './pages/supervisor/SupervisorChangePin';
  *   /supervisor/*       → ProtectedRoute(role=supervisor) → SupervisorLayout
  *   /                   → redirect to /login
  */
+import SessionEnforcerModal from './components/SessionEnforcerModal';
+
 export default function App() {
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/accept-invite" element={<AcceptInvite />} />
+    <>
+      <SessionEnforcerModal />
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/accept-invite" element={<AcceptInvite />} />
 
-      {/* Technician routes */}
-      <Route
-        path="/technician"
-        element={
-          <ProtectedRoute role="technician">
-            <TechnicianLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Navigate to="home" replace />} />
-        <Route path="home" element={<TechnicianHome />} />
-        <Route path="attendance" element={<TechnicianCalendar />} />
-        <Route path="account" element={<TechnicianAccount />} />
-        <Route path="profile" element={<TechnicianProfile />} />
-        <Route path="change-pin" element={<TechnicianChangePin />} />
-      </Route>
+        {/* Technician routes */}
+        <Route
+          path="/technician"
+          element={
+            <ProtectedRoute role="technician">
+              <TechnicianLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="home" replace />} />
+          <Route path="home" element={<TechnicianHome />} />
+          <Route path="attendance" element={<TechnicianCalendar />} />
+          <Route path="account" element={<TechnicianAccount />} />
+          <Route path="profile" element={<TechnicianProfile />} />
+          <Route path="change-pin" element={<TechnicianChangePin />} />
+        </Route>
 
-      {/* Foreman routes */}
-      <Route
-        path="/foreman"
-        element={
-          <ProtectedRoute role="foreman">
-            <ForemanLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Navigate to="home" replace />} />
-        <Route path="home" element={<ForemanHome />} />
-        <Route path="crew" element={<ForemanCrew />} />
-        <Route path="calendar" element={<ForemanCalendar />} />
-        <Route path="account" element={<ForemanAccount />} />
-        <Route path="profile" element={<ForemanProfile />} />
-        <Route path="change-pin" element={<ForemanChangePin />} />
-      </Route>
+        {/* Foreman routes */}
+        <Route
+          path="/foreman"
+          element={
+            <ProtectedRoute role="foreman">
+              <ForemanLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="home" replace />} />
+          <Route path="home" element={<ForemanHome />} />
+          <Route path="crew" element={<ForemanCrew />} />
+          <Route path="calendar" element={<ForemanCalendar />} />
+          <Route path="account" element={<ForemanAccount />} />
+          <Route path="profile" element={<ForemanProfile />} />
+          <Route path="change-pin" element={<ForemanChangePin />} />
+        </Route>
 
-      {/* Supervisor routes */}
-      <Route
-        path="/supervisor"
-        element={
-          <ProtectedRoute role="supervisor">
-            <SupervisorLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Navigate to="home" replace />} />
-        <Route path="home" element={<SupervisorHome />} />
-        <Route path="projects" element={<SupervisorProjects />} />
-        <Route path="projects/:projectId" element={<SupervisorProjectDetail />} />
-        <Route path="rfis" element={<SupervisorRfis />} />
-        <Route path="account" element={<SupervisorAccount />} />
-        <Route path="profile" element={<SupervisorProfile />} />
-        <Route path="change-pin" element={<SupervisorChangePin />} />
-      </Route>
+        {/* Supervisor routes */}
+        <Route
+          path="/supervisor"
+          element={
+            <ProtectedRoute role="supervisor">
+              <SupervisorLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="home" replace />} />
+          <Route path="home" element={<SupervisorHome />} />
+          <Route path="projects" element={<SupervisorProjects />} />
+          <Route path="projects/:projectId" element={<SupervisorProjectDetail />} />
+          <Route path="rfis" element={<SupervisorRfis />} />
+          <Route path="account" element={<SupervisorAccount />} />
+          <Route path="profile" element={<SupervisorProfile />} />
+          <Route path="change-pin" element={<SupervisorChangePin />} />
+        </Route>
 
-      {/* Catch-all: redirect to login */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
+        {/* Catch-all: redirect to login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </>
   );
 }
 
