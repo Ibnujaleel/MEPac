@@ -225,6 +225,8 @@ graph TB
 | **Error Boundary** | Graceful error recovery preventing white-screen crashes in the field |
 | **Offline PWA Shell** | Workbox-cached app shell, Google Fonts caching (1-year expiry), standalone display mode |
 
+> For detailed PWA architecture, service layer endpoints, state management, design tokens, and workflow diagrams, see [`mepac-pwa/docs/CODEBASE_DOCUMENTATION.md`](./mepac-pwa/docs/CODEBASE_DOCUMENTATION.md).
+
 ---
 
 ## User Roles & Access Matrix

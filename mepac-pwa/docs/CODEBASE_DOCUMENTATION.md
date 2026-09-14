@@ -9,19 +9,16 @@
 1. [Technology Stack](#1-technology-stack)
 2. [Project Structure](#2-project-structure)
 3. [Architecture Overview](#3-architecture-overview)
-4. [Application Bootstrap & Entry Point](#4-application-bootstrap--entry-point)
+4. [Application Bootstrap](#4-application-bootstrap)
 5. [Authentication & Session Management](#5-authentication--session-management)
 6. [Role-Based Routing & Access Control](#6-role-based-routing--access-control)
-7. [User Roles & Page Breakdown](#7-user-roles--page-breakdown)
+7. [User Roles & Features](#7-user-roles--features)
 8. [Backend Services (Convex)](#8-backend-services-convex)
-9. [State Management (Zustand)](#9-state-management-zustand)
-10. [Reusable Components](#10-reusable-components)
-11. [Design System & Theming](#11-design-system--theming)
-12. [PWA Configuration](#12-pwa-configuration)
-13. [Push Notifications](#13-push-notifications)
-14. [Build & Deployment](#14-build--deployment)
-15. [Git & Branching Strategy](#15-git--branching-strategy)
-16. [Workflow Diagrams](#16-workflow-diagrams)
+9. [State Management](#9-state-management)
+10. [Design System](#10-design-system)
+11. [PWA Configuration](#11-pwa-configuration)
+12. [Build & Deployment](#12-build--deployment)
+13. [Workflow Diagrams](#13-workflow-diagrams)
 
 ---
 
@@ -29,36 +26,36 @@
 
 | Layer | Technology | Version | Purpose |
 |---|---|---|---|
-| **UI Framework** | React | 19.2.7 | Component-based UI rendering |
-| **Routing** | React Router DOM | 7.18.1 | Client-side navigation & nested layouts |
-| **State Management** | Zustand | 5.0.14 | Lightweight global state (auth store) |
-| **Backend / BaaS** | Convex | 1.45.0 | Real-time database, serverless functions, live queries |
-| **Build Tool** | Vite | 8.1.1 | Fast dev server & production bundler |
-| **Styling** | TailwindCSS | 3.4.19 | Utility-first CSS with custom design tokens |
-| **Icons** | Lucide React | 1.26.0 | Modern SVG icon library |
-| **PWA** | vite-plugin-pwa | 1.3.0 | Service worker, manifest, offline caching |
-| **Linting** | oxlint | 1.71.0 | Fast JavaScript linter |
-| **Deployment** | Vercel | — | Hosting with SPA rewrites |
+| **UI Framework** | React | 19.x | Component-based UI rendering |
+| **Routing** | React Router DOM | 7.x | Client-side navigation & nested layouts |
+| **State Management** | Zustand | 5.x | Lightweight global auth state with localStorage persistence |
+| **Backend / BaaS** | Convex | 1.45 | Real-time database, serverless functions, live queries |
+| **Build Tool** | Vite | 8.x | Dev server with HMR & production bundling |
+| **Styling** | TailwindCSS | 3.4 | Utility-first CSS with custom design tokens |
+| **Icons** | Lucide React | 1.26 | SVG icon library |
+| **PWA** | vite-plugin-pwa | 1.3 | Service worker generation, manifest, Workbox caching |
+| **Linting** | Oxlint | 1.71 | JavaScript linter |
+| **Deployment** | Vercel | — | SPA hosting with client-side route rewrites |
 
 ---
 
 ## 2. Project Structure
 
 ```
-mepacc-pwa/
-├── index.html                    # HTML shell (SPA entry point)
+mepac-pwa/
+├── index.html                    # SPA entry point
 ├── package.json                  # Dependencies & scripts
-├── vite.config.js                # Vite + PWA + SSL + chunking config
-├── tailwind.config.js            # Design system tokens (colors, fonts, spacing)
+├── vite.config.js                # Vite + PWA + chunking config
+├── tailwind.config.js            # Design tokens (colors, fonts, spacing)
 ├── postcss.config.js             # PostCSS with Tailwind & Autoprefixer
 ├── vercel.json                   # Vercel SPA rewrite rules
-├── design.md                     # Design specification document
-│
-├── public/                       # Static assets (icons, favicon)
+├── docs/
+│   └── CODEBASE_DOCUMENTATION.md # This file
+├── public/                       # Static assets (PWA icons, favicon)
 │
 └── src/
     ├── main.jsx                  # App bootstrap (React root, providers)
-    ├── App.jsx                   # Root component (all route definitions)
+    ├── App.jsx                   # Root component (route definitions + ErrorBoundary)
     ├── convex.js                 # Convex client initialization
     ├── index.css                 # Global CSS + Tailwind directives
     │
@@ -73,23 +70,23 @@ mepacc-pwa/
     │   ├── GoogleSignInButton.jsx#   Google OAuth sign-in trigger
     │   ├── NotificationBellButton.jsx  # Bell icon + unread badge
     │   ├── NotificationDrawer.jsx      # Slide-in notification panel
-    │   ├── PushNotificationListener.jsx# Bridges Convex → Browser notifications
+    │   ├── PushNotificationListener.jsx# Convex → browser notification bridge
     │   └── SessionEnforcerModal.jsx    # Single-device session enforcement
     │
     ├── layouts/                  # Role-specific shell layouts
-    │   ├── TechnicianLayout.jsx  #   Shell for /technician/* routes
-    │   ├── ForemanLayout.jsx     #   Shell for /foreman/* routes
-    │   ├── SupervisorLayout.jsx  #   Shell for /supervisor/* routes
-    │   └── DesignerLayout.jsx    #   Shell for /designer/* routes
+    │   ├── TechnicianLayout.jsx
+    │   ├── ForemanLayout.jsx
+    │   ├── SupervisorLayout.jsx
+    │   └── DesignerLayout.jsx
     │
     ├── pages/                    # Page-level components (by role)
     │   ├── LoginPage.jsx         #   Shared login (Worker ID/Mobile + PIN)
     │   ├── AcceptInvite.jsx      #   Invitation acceptance flow
     │   ├── PinSetup.jsx          #   First-time PIN creation
-    │   ├── technician/           #   Technician role pages (5 pages)
-    │   ├── foreman/              #   Foreman role pages (6 pages)
-    │   ├── supervisor/           #   Supervisor role pages (7 pages)
-    │   └── designer/             #   Designer role pages (5 pages)
+    │   ├── technician/           #   Home, Calendar, Account, Profile, ChangePin
+    │   ├── foreman/              #   Home, Crew, Calendar, Account, Profile, ChangePin
+    │   ├── supervisor/           #   Home, Projects, ProjectDetail, RFIs, Account, Profile, ChangePin
+    │   └── designer/             #   Projects, ProjectDrawings, Account, Profile, ChangePin
     │
     ├── routes/
     │   └── ProtectedRoute.jsx    # Auth + role guard wrapper
@@ -106,12 +103,9 @@ mepacc-pwa/
     ├── hooks/
     │   └── useAdaptiveLocation.js# Geolocation hook with GPS fallback
     │
-    ├── utils/
-    │   ├── colors.js             # Project gradient color utilities
-    │   └── geoUtils.js           # Geofencing & distance calculations
-    │
-    └── mock/
-        └── mockData.js           # Development mock data (users, projects, etc.)
+    └── utils/
+        ├── colors.js             # Project gradient color utilities
+        └── geoUtils.js           # Geofencing & distance calculations
 ```
 
 ---
@@ -132,7 +126,6 @@ graph TB
         DB["Convex Database"]
         Mutations["Mutations (Write)"]
         Queries["Queries (Read/Live)"]
-        ServerFunctions["Server Functions"]
     end
 
     UI --> Router
@@ -152,20 +145,18 @@ graph TB
 
 | Decision | Rationale |
 |---|---|
-| **Convex as BaaS** | Provides real-time subscriptions, serverless functions, and a managed database — no custom backend needed |
-| **Zustand over Redux** | Minimal boilerplate for a simple auth-only global state |
+| **Convex as BaaS** | Real-time subscriptions, serverless functions, managed database — no custom backend needed |
+| **Zustand over Redux** | Minimal boilerplate for auth-only global state |
 | **Role-based nested routing** | Each role gets its own layout shell and route group, enforced by `ProtectedRoute` |
-| **Service layer abstraction** | All Convex API calls are wrapped in service functions, isolating backend coupling from UI components |
-| **PWA with Workbox** | Enables "Add to Home Screen" on mobile, offline caching, and push notifications for field workers |
-| **Single-device session enforcement** | Ensures one active login per worker across devices, critical for attendance integrity |
+| **Service layer abstraction** | All Convex API calls are wrapped in service functions, isolating backend coupling from UI |
+| **PWA with Workbox** | Enables install-to-homescreen, offline caching, and push notifications for field workers |
+| **Single-device session enforcement** | One active login per worker across devices — critical for attendance integrity |
 
 ---
 
-## 4. Application Bootstrap & Entry Point
+## 4. Application Bootstrap
 
-### [main.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/main.jsx)
-
-The app mounts with three nested providers:
+The app mounts with three nested providers in `main.jsx`:
 
 ```
 StrictMode
@@ -174,11 +165,7 @@ StrictMode
             └── App (route definitions)
 ```
 
-### [convex.js](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/convex.js)
-
-Initializes the Convex client pointing to the cloud deployment:
-- **URL**: `https://small-guineapig-782.convex.cloud` (or `VITE_CONVEX_URL` env var)
-- Uses `anyApi` for dynamic function references (no codegen required)
+The Convex client is initialized in `convex.js`, pointing to the cloud deployment URL (configured via `VITE_CONVEX_URL` env var). It uses `anyApi` for dynamic function references without codegen.
 
 ---
 
@@ -205,121 +192,101 @@ sequenceDiagram
     LoginPage->>LoginPage: Navigate to /{role}/home
 ```
 
-### Key Files
-
-| File | Purpose |
-|---|---|
-| [LoginPage.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/LoginPage.jsx) | Login UI — Worker ID or 10-digit mobile + 6-digit PIN |
-| [authStore.js](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/store/authStore.js) | Zustand store with `login()`, `logout()`, `updateUser()` |
-| [authService.js](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/services/authService.js) | Convex mutations for auth (login, changePin, claimSession) |
-| [SessionEnforcerModal.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/components/SessionEnforcerModal.jsx) | Real-time single-device enforcement modal |
-
 ### Session Persistence
 
-- Auth state is persisted to `localStorage` under key `mepac_auth_session`
-- On app reload, `authStore` reads from localStorage to restore the session
+- Auth state persists to `localStorage` under key `mepac_auth_session`
+- On reload, `authStore` reads from localStorage to restore the session
 - Each device generates a unique `mepac_device_session_id` for session tracking
 
 ### Single-Device Enforcement
 
-The `SessionEnforcerModal` component:
-1. Subscribes to `workers.getActiveSession` (real-time Convex query)
-2. Compares the server's `currentSessionId` with the local device's session ID
-3. If they differ → shows a blocking modal with options to **Reclaim** or **Logout**
+`SessionEnforcerModal` subscribes to `workers.getActiveSession` (real-time Convex query), compares the server's `currentSessionId` with the local device ID, and shows a blocking modal with **Reclaim** or **Logout** options when they differ.
 
 ---
 
 ## 6. Role-Based Routing & Access Control
 
-### [App.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/App.jsx) — Route Map
+### Route Map
 
 | Route Pattern | Role | Layout | Pages |
 |---|---|---|---|
-| `/login` | Public | None | Login |
-| `/accept-invite` | Public | None | Accept Invite |
+| `/login` | Public | — | Login |
+| `/accept-invite` | Public | — | Accept Invite |
 | `/technician/*` | `technician` | TechnicianLayout | Home, Calendar, Account, Profile, Change PIN |
 | `/foreman/*` | `foreman` | ForemanLayout | Home, Crew, Calendar, Account, Profile, Change PIN |
 | `/supervisor/*` | `supervisor` | SupervisorLayout | Home, Projects, Project Detail, RFIs, Account, Profile, Change PIN |
 | `/designer/*` | `designer` | DesignerLayout | Projects, Project Drawings, Account, Profile, Change PIN |
 | `*` (catch-all) | — | — | Redirect to `/login` |
 
-### [ProtectedRoute.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/routes/ProtectedRoute.jsx)
+### Route Protection
 
-Guards each role group:
+`ProtectedRoute` guards each role group:
 - **Not authenticated** → Redirect to `/login`
 - **Wrong role** → Redirect to `/{actualRole}/home`
 - **Authorized** → Render children (layout + page)
 
 ### Layout Pattern
 
-Each layout follows the same structure:
-```
-<div className="min-h-screen bg-surface">
-  <main className="page safe-bottom">
-    <Outlet />           ← Page content renders here
-  </main>
-  <BottomNav items={...} /> ← Floating pill-shaped bottom navbar
-</div>
-```
+Each role layout follows the same structure: a full-height container with a `<main>` area rendering page content via `<Outlet />`, and a floating pill-shaped `<BottomNav>` at the bottom.
 
 ---
 
-## 7. User Roles & Page Breakdown
+## 7. User Roles & Features
 
-### 🔧 Technician (`/technician/*`)
+### Technician (`/technician/*`)
 
-| Page | File | Key Features |
-|---|---|---|
-| **Home** | [TechnicianHome.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/technician/TechnicianHome.jsx) | GPS clock-in/out, active job card, daily task list, weather widget |
-| **Calendar** | [TechnicianCalendar.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/technician/TechnicianCalendar.jsx) | Monthly attendance calendar, day-by-day records |
-| **Account** | [TechnicianAccount.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/technician/TechnicianAccount.jsx) | Settings menu (profile, change PIN, logout) |
-| **Profile** | [TechnicianProfile.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/technician/TechnicianProfile.jsx) | View/edit personal details |
-| **Change PIN** | [TechnicianChangePin.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/technician/TechnicianChangePin.jsx) | Old PIN → New PIN → Confirm flow |
+| Page | Key Features |
+|---|---|
+| **Home** | GPS-geofenced clock-in/out, active job card, daily task list, weather widget |
+| **Calendar** | Monthly attendance calendar with day-by-day records |
+| **Account** | Settings menu (profile, change PIN, logout) |
+| **Profile** | View/edit personal details |
+| **Change PIN** | Old PIN → New PIN → Confirm flow |
 
 **Bottom Nav**: Home · Calendar · Account
 
 ---
 
-### 👷 Foreman (`/foreman/*`)
+### Foreman (`/foreman/*`)
 
-| Page | File | Key Features |
-|---|---|---|
-| **Home** | [ForemanHome.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/foreman/ForemanHome.jsx) | GPS clock-in/out, crew overview, daily toolbox talk, task list |
-| **Crew** | [ForemanCrew.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/foreman/ForemanCrew.jsx) | Crew attendance list, proxy check-in modal with custom dropdown |
-| **Calendar** | [ForemanCalendar.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/foreman/ForemanCalendar.jsx) | Monthly attendance calendar |
-| **Account** | [ForemanAccount.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/foreman/ForemanAccount.jsx) | Settings menu |
-| **Profile** | [ForemanProfile.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/foreman/ForemanProfile.jsx) | View/edit personal details |
-| **Change PIN** | [ForemanChangePin.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/foreman/ForemanChangePin.jsx) | PIN change flow |
+| Page | Key Features |
+|---|---|
+| **Home** | GPS clock-in/out, crew overview, daily toolbox talk, task list |
+| **Crew** | Crew attendance list, audited proxy check-in modal with reason selection |
+| **Calendar** | Monthly attendance calendar |
+| **Account** | Settings menu |
+| **Profile** | View/edit personal details |
+| **Change PIN** | PIN change flow |
 
 **Bottom Nav**: Home · Crew · Calendar · Account
 
 ---
 
-### 📋 Supervisor (`/supervisor/*`)
+### Supervisor (`/supervisor/*`)
 
-| Page | File | Key Features |
-|---|---|---|
-| **Home** | [SupervisorHome.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/supervisor/SupervisorHome.jsx) | Dashboard KPIs, project overview, crew stats, daily summary |
-| **Projects** | [SupervisorProjects.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/supervisor/SupervisorProjects.jsx) | Project list with status filters, search |
-| **Project Detail** | [SupervisorProjectDetail.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/supervisor/SupervisorProjectDetail.jsx) | Detailed project view with crew, tasks, progress |
-| **RFIs & Disputes** | [SupervisorRfis.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/supervisor/SupervisorRfis.jsx) | RFI/Dispute hub with filters, threaded messages, dispute audit trail |
-| **Account** | [SupervisorAccount.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/supervisor/SupervisorAccount.jsx) | Settings menu |
-| **Profile** | [SupervisorProfile.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/supervisor/SupervisorProfile.jsx) | View/edit personal details |
-| **Change PIN** | [SupervisorChangePin.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/supervisor/SupervisorChangePin.jsx) | PIN change flow |
+| Page | Key Features |
+|---|---|
+| **Home** | Dashboard KPIs, project overview, crew stats, daily summary |
+| **Projects** | Project list with status filters and search |
+| **Project Detail** | Detailed project view with crew, tasks, and progress |
+| **RFIs & Disputes** | RFI/Dispute hub with filters, threaded messages, dispute audit trail |
+| **Account** | Settings menu |
+| **Profile** | View/edit personal details |
+| **Change PIN** | PIN change flow |
 
 **Bottom Nav**: Home · Projects · RFIs · Account
 
 ---
 
-### 🎨 Designer (`/designer/*`)
+### Designer (`/designer/*`)
 
-| Page | File | Key Features |
-|---|---|---|
-| **Projects** | [DesignerProjects.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/designer/DesignerProjects.jsx) | Assigned project list with gradient cards |
-| **Project Drawings** | [DesignerProjectDrawings.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/designer/DesignerProjectDrawings.jsx) | Blueprint manager — upload, revise, delete, version history |
-| **Account** | [DesignerAccount.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/designer/DesignerAccount.jsx) | Settings menu |
-| **Profile** | [DesignerProfile.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/designer/DesignerProfile.jsx) | View/edit personal details |
-| **Change PIN** | [DesignerChangePin.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/pages/designer/DesignerChangePin.jsx) | PIN change flow |
+| Page | Key Features |
+|---|---|
+| **Projects** | Assigned project list with gradient cards |
+| **Project Drawings** | Blueprint manager — upload, revise, delete, version history |
+| **Account** | Settings menu |
+| **Profile** | View/edit personal details |
+| **Change PIN** | PIN change flow |
 
 **Bottom Nav**: Projects · Account
 
@@ -327,20 +294,20 @@ Each layout follows the same structure:
 
 ## 8. Backend Services (Convex)
 
-All backend communication goes through the service layer in `src/services/`. Each service wraps Convex mutations (writes) and queries (reads).
+All backend communication goes through the service layer in `src/services/`.
 
-### Service Files
+### Service Layer
 
-| Service | File | Convex Endpoints Used |
-|---|---|---|
-| **Auth** | [authService.js](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/services/authService.js) | `workers.loginWithPin`, `workers.changePin`, `workers.claimSession` |
-| **Attendance** | [attendanceService.js](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/services/attendanceService.js) | `checkIns.getTodayStatus`, `checkIns.clockInWorker`, `checkIns.clockOutWorker`, `checkIns.getMonthlyAttendance`, `checkIns.getCrewAttendance`, `checkIns.proxyCheckIn` |
-| **Jobs/Projects** | [jobService.js](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/services/jobService.js) | `projects.getActiveJobForWorker`, `projects.getSupervisorProjects` |
-| **Push Notifications** | [pushNotificationService.js](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/services/pushNotificationService.js) | Browser Notifications API + Service Worker |
+| Service | Convex Endpoints |
+|---|---|
+| **Auth** | `workers.loginWithPin`, `workers.changePin`, `workers.claimSession` |
+| **Attendance** | `checkIns.getTodayStatus`, `checkIns.clockInWorker`, `checkIns.clockOutWorker`, `checkIns.getMonthlyAttendance`, `checkIns.getCrewAttendance`, `checkIns.proxyCheckIn` |
+| **Jobs/Projects** | `projects.getActiveJobForWorker`, `projects.getSupervisorProjects` |
+| **Push Notifications** | Browser Notifications API + Service Worker bridge |
 
-### Convex Real-Time Queries (used directly in components)
+### Real-Time Queries
 
-Some components use `useQuery()` from `convex/react` for **live subscriptions**:
+Some components use `useQuery()` from `convex/react` directly for live subscriptions:
 
 | Component | Query | Purpose |
 |---|---|---|
@@ -351,60 +318,29 @@ Some components use `useQuery()` from `convex/react` for **live subscriptions**:
 
 ---
 
-## 9. State Management (Zustand)
+## 9. State Management
 
-### [authStore.js](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/store/authStore.js)
+The app uses a single Zustand store (`authStore.js`) for cross-cutting auth state. All component-level state (form inputs, modals, filters) uses React `useState` hooks.
 
-The only global store. Manages authentication state with localStorage persistence.
+**Auth Store Shape:**
 
-```
-┌──────────────────────────────────────┐
-│           Auth Store (Zustand)       │
-├──────────────────────────────────────┤
-│ State:                               │
-│   • user: object | null              │
-│   • role: string | null              │
-│   • isAuthenticated: boolean         │
-│   • isLoading: boolean               │
-│   • error: string | null             │
-├──────────────────────────────────────┤
-│ Actions:                             │
-│   • login(phone, pin, force?)        │
-│   • logout()                         │
-│   • updateUser(updates)              │
-│   • clearError()                     │
-├──────────────────────────────────────┤
-│ Persistence:                         │
-│   localStorage key: mepac_auth_session│
-└──────────────────────────────────────┘
-```
-
-> [!NOTE]
-> Component-level state (e.g., form inputs, modal open/close, filter selections) is managed with React `useState` hooks, not Zustand. Only cross-cutting auth state lives in the global store.
-
----
-
-## 10. Reusable Components
-
-| Component | File | Description |
+| Field | Type | Description |
 |---|---|---|
-| **BottomNav** | [BottomNav.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/components/BottomNav.jsx) | Floating dark pill-shaped bottom navbar with active tab highlighting |
-| **Button** | [Button.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/components/Button.jsx) | Styled button with `primary`, `secondary`, `danger` variants and size options |
-| **Card** | [Card.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/components/Card.jsx) | Container with rounded corners, border, and shadow |
-| **Input** | [Input.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/components/Input.jsx) | Labeled text input with consistent styling |
-| **Select** | [Select.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/components/Select.jsx) | Custom dropdown select component |
-| **PinInput** | [PinInput.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/components/PinInput.jsx) | 6-digit PIN entry with auto-focus between boxes |
-| **ErrorBoundary** | [ErrorBoundary.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/components/ErrorBoundary.jsx) | Catches render errors and displays fallback UI |
-| **NotificationBellButton** | [NotificationBellButton.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/components/NotificationBellButton.jsx) | Bell icon with unread count badge |
-| **NotificationDrawer** | [NotificationDrawer.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/components/NotificationDrawer.jsx) | Slide-in panel with real-time notification feed |
-| **SessionEnforcerModal** | [SessionEnforcerModal.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/components/SessionEnforcerModal.jsx) | Blocking modal for single-device session enforcement |
-| **PushNotificationListener** | [PushNotificationListener.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/components/PushNotificationListener.jsx) | Bridges Convex notifications to browser notification bar |
+| `user` | `object \| null` | Current authenticated user |
+| `role` | `string \| null` | User's role (`technician`, `foreman`, `supervisor`, `designer`) |
+| `isAuthenticated` | `boolean` | Whether a session is active |
+| `isLoading` | `boolean` | Loading state during auth operations |
+| `error` | `string \| null` | Last auth error message |
+
+**Actions:** `login(phone, pin, force?)`, `logout()`, `updateUser(updates)`, `clearError()`
+
+**Persistence:** `localStorage` key `mepac_auth_session`
 
 ---
 
-## 11. Design System & Theming
+## 10. Design System
 
-Defined in [tailwind.config.js](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/tailwind.config.js):
+Defined in `tailwind.config.js`:
 
 ### Color Palette
 
@@ -421,124 +357,68 @@ Defined in [tailwind.config.js](file:///c:/Users/afsal/OneDrive/Desktop/expo%20g
 | `surface-card` | `#FFFFFF` | Card backgrounds |
 | `text-primary` | `#0B1C30` | Main body text |
 | `text-secondary` | `#444653` | Supporting text |
-| `text-muted` | `#6B7280` | Hint/placeholder text |
+| `text-muted` | `#6B7280` | Hint / placeholder text |
 
 ### Typography
 
-| Token | Font | Usage |
-|---|---|---|
-| `font-sans` | Inter | Body text |
-| `font-heading` | IBM Plex Sans | Headings, titles |
-| `font-mono` | JetBrains Mono | Codes, timestamps, IDs |
-
-### Border Radius
-
-| Token | Value |
+| Token | Font Stack |
 |---|---|
-| `rounded-sm` | 8px |
-| `rounded-md` | 12px |
-| `rounded-lg` | 16px |
-| `rounded-xl` | 20px |
-| `rounded-full` | 9999px |
+| `font-sans` | Inter, system-ui |
+| `font-heading` | IBM Plex Sans, system-ui |
+| `font-mono` | JetBrains Mono, ui-monospace |
 
 ---
 
-## 12. PWA Configuration
+## 11. PWA Configuration
 
-Configured in [vite.config.js](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/vite.config.js) using `vite-plugin-pwa`:
+Configured in `vite.config.js` using `vite-plugin-pwa`:
 
 | Feature | Setting |
 |---|---|
 | **App Name** | MEPac — Field Workforce Management |
 | **Display Mode** | `standalone` (full-screen, no browser chrome) |
 | **Theme Color** | `#1E3A5F` |
-| **Register Type** | `autoUpdate` (service worker auto-updates) |
-| **Offline Caching** | All JS, CSS, HTML, images, fonts via Workbox `globPatterns` |
+| **Register Type** | `autoUpdate` (service worker auto-updates on new deployments) |
+| **Offline Caching** | JS, CSS, HTML, images, fonts via Workbox `globPatterns` |
 | **Font Caching** | Google Fonts cached for 1 year with `CacheFirst` strategy |
 
 ### Build Optimization
 
-Manual chunking splits vendor code into 4 chunks:
+Manual chunking splits vendor code into four bundles:
 - `vendor-react` — React, React DOM, React Router
 - `vendor-convex` — Convex client
 - `vendor-icons` — Lucide React icons
 - `vendor-libs` — All other node_modules
 
----
+### Push Notifications
 
-## 13. Push Notifications
-
-### [pushNotificationService.js](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/services/pushNotificationService.js)
-
-Bridges Convex real-time notifications to the browser's native notification bar:
-
-1. **Permission Check** → Uses `Notification.requestPermission()`
-2. **Service Worker Route** → Tries `registration.showNotification()` first (works on mobile PWA)
-3. **Fallback** → Falls back to `new Notification()` for desktop browsers
-4. **Features** → Vibration pattern, badge icon, click-to-focus
-
-### [PushNotificationListener.jsx](file:///c:/Users/afsal/OneDrive/Desktop/expo%20go/mepac/mepacc-pwa/src/components/PushNotificationListener.jsx)
-
-A global component (mounted in `App.jsx`) that:
-- Subscribes to Convex notification queries
-- Triggers browser notifications for new items
-- Runs silently in the background
+The `PushNotificationListener` component (mounted globally in `App.jsx`) subscribes to Convex notification queries and triggers browser notifications for new items. It uses the Service Worker route (`registration.showNotification()`) for mobile PWA, with a fallback to `new Notification()` for desktop browsers.
 
 ---
 
-## 14. Build & Deployment
+## 12. Build & Deployment
 
 ### Development
 
 ```bash
-npm run dev          # Start Vite dev server (http://localhost:5173)
-npm run lint         # Run oxlint
+npm run dev          # Start Vite dev server (http://localhost:5174)
+npm run lint         # Run Oxlint
 ```
 
-### Production Build
+### Production
 
 ```bash
-npm run build        # Build to /dist
+npm run build        # Build to /dist (includes service worker generation)
 npm run preview      # Preview production build locally
 ```
 
-### Deployment (Vercel)
+### Deployment
 
-The app is configured for Vercel deployment with SPA rewrites:
-
-```json
-// vercel.json
-{
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
-```
-
-All routes are rewritten to `index.html`, allowing React Router to handle client-side navigation.
+Deployed to Vercel with SPA rewrites — all routes rewrite to `index.html`, allowing React Router to handle client-side navigation.
 
 ---
 
-## 15. Git & Branching Strategy
-
-### Repository
-
-| Remote | URL | Purpose |
-|---|---|---|
-| `origin` | `https://github.com/MOHAMAMAD-AFSAL-M/Mepacc.git` | Your fork / primary repository |
-| `coworker` | `https://github.com/Ibnujaleel/MEPac.git` | Coworker's repository |
-
-### Active Branches
-
-| Branch | Description |
-|---|---|
-| `feature/technician-pwa` ⭐ | **Default branch** — main development branch with all current work |
-| `feature/supervisor-foreman-pwa-modules` | Supervisor & Foreman module development |
-| `coworker-main` | Local tracking of coworker's main branch |
-
----
-
-## 16. Workflow Diagrams
+## 13. Workflow Diagrams
 
 ### Technician Clock-In Flow
 
@@ -596,9 +476,9 @@ sequenceDiagram
     RFI->>Convex: mutation(rfis.createRfi)
     Convex-->>RFI: { rfiId }
     RFI->>RFI: RFI appears in live list (useQuery)
-    
+
     Note over RFI,Convex: Admin reviews RFI in Admin Console
-    
+
     Convex-->>RFI: Real-time status update
     RFI-->>Sup: Status changes to RESOLVED
 ```
@@ -618,9 +498,9 @@ sequenceDiagram
     Draw->>Convex: mutation(blueprints.create)
     Convex-->>Draw: { blueprintId }
     Draw->>Draw: Blueprint appears in category list
-    
+
     Note over Draw: Later...
-    
+
     Des->>Draw: Tap "Upload Revision" on existing blueprint
     Draw->>Convex: mutation(blueprints.uploadRevision)
     Convex-->>Draw: Version incremented (v1 → v2)
@@ -629,8 +509,8 @@ sequenceDiagram
 ---
 
 > [!TIP]
-> To add a new role or page:
-> 1. Create a new layout in `src/layouts/`
+> **Adding a new role or page:**
+> 1. Create a layout in `src/layouts/`
 > 2. Create page components in `src/pages/{roleName}/`
 > 3. Add routes in `App.jsx` wrapped with `<ProtectedRoute role="newRole">`
 > 4. Update `ProtectedRoute.jsx` if needed for new role validation
