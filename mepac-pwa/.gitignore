@@ -22,3 +22,16 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# AI assistant files
+.agents/
+.claude/
+AGENTS.md
+CLAUDE.md
+skills-lock.json
+
+# Prototype / scratch files
+stitch_data/
+
+# Mock / test data
+src/mock/
