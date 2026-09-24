@@ -29,9 +29,3 @@ dist-ssr
 AGENTS.md
 CLAUDE.md
 skills-lock.json
-
-# Prototype / scratch files
-stitch_data/
-
-# Mock / test data
-src/mock/
